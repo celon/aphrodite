@@ -64,6 +64,31 @@ module SpiderUtil
 		return result
 	end
 end
+
+module CycleWorker
+	def cycle_init(opt={})
+		@cycle_roundtime = 60
+		@cycle_roundtime = opt[:roundtime] unless opt[:roundtime].nil?
+		@cycle_roundct = 0
+	end
+
+	def cycle_endless(opt={})
+		cycle_init if @cycle_roundtime.nil?
+		verbose = opt[:verbose]
+		while true
+			@cycle_roundct += 1
+			LOGGER.debug "CycleWorker round##{@cycle_roundct} start." if verbose
+			start_t = Time.now
+			cycle_work
+			end_t = Time.now
+			LOGGER.debug "CycleWorker round##{@cycle_roundct} finished." if verbose
+			sleep_time = @cycle_roundtime - (end_t - start_t)
+			sleep sleep_time if sleep_time > 0
+		end
+	end
+
+	def cycle_work; end
+end
 	
 module EncodeUtil
 	def encode64(data)
@@ -114,16 +139,32 @@ end
 
 module MQUtil
 	def mq_connect(opt={})
-		@conn = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
-		@conn.start
-		@channel = @conn.create_channel
+		@mq_conn = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+		@mq_conn.start
+		@mq_qlist = {}
+		@mq_channel = @mq_conn.create_channel
+	end
+
+	def mq_createq(route_key)
+		@mq_channel ||= mq_connect
+		@mq_channel.queue(route_key, :durable => true)
+		@mq_qlist[route_key] = true
 	end
 
 	def mq_push(route_key, content, opt={})
-		@channel.default_exchange.publish content, routing_key:route_key
+		@mq_channel ||= mq_connect
+		verbose = opt[:verbose]
+		mq_createq route_key if @mq_qlist[route_key].nil?
+		content = [*content]
+		content.each do |piece|
+			@mq_channel.default_exchange.publish piece.to_json, routing_key:route_key
+			LOGGER.debug "MQUtil: msg #{piece.to_json}" if verbose
+		end
+		LOGGER.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
 	end
 
 	def mq_consume(queue, options={})
+		@mq_channel ||= mq_connect
 		if options[:thread]
 			options[:thread] = false
 			return Thread.new do
