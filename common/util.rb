@@ -104,6 +104,10 @@ module EncodeUtil
 		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
 	end
 
+	def md5(data)
+		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
+	end
+
 	def snake2Camel(snake, capFirst = false)
 		camel = nil
 		snake.split('_').each do |w|
@@ -157,6 +161,7 @@ module MQUtil
 		mq_createq route_key if @mq_qlist[route_key].nil?
 		content = [*content]
 		content.each do |piece|
+			next if piece.nil?
 			@mq_channel.default_exchange.publish piece.to_json, routing_key:route_key
 			LOGGER.debug "MQUtil: msg #{piece.to_json}" if verbose
 		end
