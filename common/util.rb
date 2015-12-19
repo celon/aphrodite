@@ -144,6 +144,7 @@ end
 module MQUtil
 	def mq_connect(opt={})
 		@mq_conn = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+		@mysql2_enabled = opt[:mysql2] == true
 		@mq_conn.start
 		@mq_qlist = {}
 		@mq_channel = @mq_conn.create_channel
@@ -184,7 +185,7 @@ module MQUtil
 		end
 	
 		tableName = options[:table]
-		dao = DynamicMysqlDao.new
+		dao = DynamicMysqlDao.new mysql2_enabled: @mysql2_enabled
 		clazz = nil
 		clazz = dao.getClass tableName unless tableName.nil?
 		debug = options[:debug] == true
@@ -192,6 +193,7 @@ module MQUtil
 		silent = options[:silent] == true
 		noack_on_err = options[:noack_on_err] == true
 		noerr = options[:noerr] == true
+		prefetch_num = options[:prefetch_num]
 		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
 	
@@ -204,6 +206,7 @@ module MQUtil
 			return -1
 		end
 		ch = conn.create_channel
+		ch.basic_qos(prefetch_num) unless prefetch_num.nil?
 		q = ch.queue(queue, :durable => true)
 		err_q = ch.queue("#{queue}_err", :durable => true)
 		totalCount = q.message_count

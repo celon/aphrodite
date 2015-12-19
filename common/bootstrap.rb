@@ -11,6 +11,7 @@ require 'bunny'
 require 'redis'
 require 'nokogiri'
 require "mysql"
+require "mysql2"
 require 'logger'
 require 'colorize'
 require 'json'

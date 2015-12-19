@@ -2,6 +2,7 @@ source 'https://rubygems.org'
 
 gem 'rest-client'
 gem 'ruby-mysql'
+gem 'mysql2'
 gem 'redis'
 gem 'nokogiri'
 gem 'logger'

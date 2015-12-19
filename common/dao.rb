@@ -4,6 +4,7 @@ class MysqlDAO
 
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
+		@mysql2_enabled = opt[:mysql2] == true
 		init_dbclient
 	end
 
@@ -19,11 +20,18 @@ class MysqlDAO
 		while true do
 			begin
 				LOGGER.info "Initialize MySQL to #{DB_USER}@#{DB_HOST}"
-				dbclient = Mysql.init
-				dbclient.options Mysql::SET_CHARSET_NAME, 'utf8'
-				port = DB_PORT if defined? MysqlDAO::DB_PORT
-				dbclient.real_connect(DB_HOST, DB_USER, DB_PSWD, DB_NAME, DB_PORT)
-				break
+				if @mysql2_enabled
+					LOGGER.highlight "Use mysql2 lib."
+					port = DB_PORT if defined? MysqlDAO::DB_PORT
+					dbclient = Mysql2::Client.new host: DB_HOST, port: port, username: DB_USER, password: DB_PSWD, database: DB_NAME, encoding: 'utf8', reconnect:true, as: :array
+					break
+				else
+					dbclient = Mysql.init
+					dbclient.options Mysql::SET_CHARSET_NAME, 'utf8'
+					port = DB_PORT if defined? MysqlDAO::DB_PORT
+					dbclient.real_connect(DB_HOST, DB_USER, DB_PSWD, DB_NAME, DB_PORT)
+					break
+				end
 			rescue Exception
 				errInfo = $!.message
 				LOGGER.error ("Error in connecting DB, will retry:" + errInfo)
