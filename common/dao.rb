@@ -6,6 +6,7 @@ class MysqlDAO
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
 		@dbconn_mutex = Mutex.new
+		@thread_safe = opt[:thread_safe] == true
 		init_dbclient
 	end
 
@@ -62,6 +63,7 @@ class MysqlDAO
 	end
 
 	def dbclient_query(sql)
+		return @dbclient.query(sql) unless @thread_safe == true
 		@dbconn_mutex.lock
 		ret = nil
 		begin
@@ -195,10 +197,12 @@ class DynamicMysqlObj
 	end
 
 	def save(update = false)
+		LOGGER.highlight "WARNING: DynamicMysqlObj.save is not thread-safe." if Thread.current != Thread.main
 		self.class.mysql_dao.saveObj self, update
 	end
 
 	def delete(real = false)
+		LOGGER.highlight "WARNING: DynamicMysqlObj.delete is not thread-safe." if Thread.current != Thread.main
 		self.class.mysql_dao.deleteObj self, real
 	end
 end
@@ -230,6 +234,7 @@ class DynamicMysqlDao < MysqlDAO
 	DYNAMIC_CLASS_GENERATE_LOCK = Mutex.new
 
 	def getClass(table)
+		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
 		DYNAMIC_CLASS_GENERATE_LOCK.lock
 		ret = nil
 		begin
