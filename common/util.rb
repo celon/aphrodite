@@ -224,7 +224,7 @@ module MQUtil
 				# Redirect to err queue.
 				ch.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				clazz.new(json).save(allow_dup_entry) if success != false && clazz != nil
+				dao.saveObj(clazz.new(json), allow_dup_entry) if success != false && clazz != nil
 				# Debug only onetime.
 				exit! if debug
 				# Send ACK.
