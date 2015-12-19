@@ -5,6 +5,7 @@ class MysqlDAO
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
+		@dbconn_mutex = Mutex.new
 		init_dbclient
 	end
 
@@ -60,12 +61,23 @@ class MysqlDAO
 		end
 	end
 
+	def dbclient_query(sql)
+		@dbconn_mutex.lock
+		ret = nil
+		begin
+			ret = @dbclient.query(sql)
+		ensure
+			@dbconn_mutex.unlock
+		end
+		ret
+	end
+
 	def query(sql, log = false)
 		init_dbclient if @dbclient.nil?
 		while true
 			begin
 				LOGGER.debug sql if log == true
-				return @dbclient.query(sql)
+				return dbclient_query(sql)
 			rescue => e
 				if e.message == "MySQL server has gone away"
 					LOGGER.info(e.message + ", retry.")
@@ -88,7 +100,7 @@ class MysqlDAO
 			# Try insert, otherwise update.
 			begin
 				LOGGER.debug sqlInsert if log == true
-				@dbclient.query(sqlInsert)
+				dbclient_query(sqlInsert)
 				return 1
 			rescue => e
 				if e.message == "MySQL server has gone away"
@@ -215,8 +227,20 @@ class DynamicMysqlDao < MysqlDAO
 	}
 
 	MYSQL_CLASS_MAP = {}
+	DYNAMIC_CLASS_GENERATE_LOCK = Mutex.new
 
 	def getClass(table)
+		DYNAMIC_CLASS_GENERATE_LOCK.lock
+		ret = nil
+		begin
+			ret = getClass_int(table)
+		ensure
+			DYNAMIC_CLASS_GENERATE_LOCK.unlock
+		end
+		ret
+	end
+
+	def getClass_int(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
 		LOGGER.debug "Detecting table[#{table}] structure."
 		selectSql = "SELECT "
