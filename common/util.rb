@@ -162,8 +162,10 @@ module MQUtil
 		content = [*content]
 		content.each do |piece|
 			next if piece.nil?
-			@mq_channel.default_exchange.publish piece.to_json, routing_key:route_key
-			LOGGER.debug "MQUtil: msg #{piece.to_json}" if verbose
+			payload = piece
+			payload = payload.to_json unless payload.is_a? String
+			@mq_channel.default_exchange.publish payload, routing_key:route_key
+			LOGGER.debug "MQUtil: msg #{payload}" if verbose
 		end
 		LOGGER.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
 	end
@@ -190,6 +192,7 @@ module MQUtil
 		silent = options[:silent] == true
 		noack_on_err = options[:noack_on_err] == true
 		noerr = options[:noerr] == true
+		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
 	
 		LOGGER.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
@@ -211,14 +214,14 @@ module MQUtil
 			processedCount += 1
 			success = true
 			begin
-				LOGGER.info "[#{q.name}:#{processedCount}/#{totalCount}]: #{show_full_body ? body : body[0..60]}" unless silent
+				LOGGER.info "[#{q.name}:#{processedCount}/#{totalCount}]: #{show_full_body ? body : body[0..40]}" unless silent
 				json = JSON.parse body
 				# Process json in yield, save if needed.
 				success = yield(json, dao) if block_given?
 				# Redirect to err queue.
 				ch.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				clazz.new(json).save if success != false && clazz != nil
+				clazz.new(json).save(allow_dup_entry) if success != false && clazz != nil
 				# Debug only onetime.
 				exit! if debug
 				# Send ACK.
