@@ -13,3 +13,5 @@ DB_USER = 'aphrodite'
 DB_PSWD = 'x'
 DB_NAME = 'aphrodite'
 DB_PORT = 3306
+
+Dir["#{File.dirname(__FILE__)}/*.rb"].each { |f| require f }
