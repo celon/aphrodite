@@ -1,0 +1,42 @@
+GEM
+  specs:
+    amq-protocol (2.0.1)
+    bunny (2.2.2)
+      amq-protocol (>= 2.0.1)
+    colorize (0.7.7)
+    domain_name (0.5.25)
+      unf (>= 0.0.5, < 1.0.0)
+    http-cookie (1.0.2)
+      domain_name (~> 0.5)
+    logger (1.2.8)
+    mime-types (2.99)
+    mini_portile2 (2.0.0)
+    mysql2 (0.4.2)
+    netrc (0.11.0)
+    nokogiri (1.6.7.1)
+      mini_portile2 (~> 2.0.0.rc2)
+    redis (3.2.2)
+    rest-client (1.8.0)
+      http-cookie (>= 1.0.2, < 2.0)
+      mime-types (>= 1.16, < 3.0)
+      netrc (~> 0.7)
+    ruby-mysql (2.9.13)
+    unf (0.1.4)
+      unf_ext
+    unf_ext (0.0.7.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bunny
+  colorize
+  logger
+  mysql2
+  nokogiri
+  redis
+  rest-client
+  ruby-mysql
+
+BUNDLED WITH
+   1.10.6
