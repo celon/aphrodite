@@ -1,8 +1,13 @@
 gem 'rest-client'
 gem 'ruby-mysql'
-gem 'mysql2'
 gem 'redis'
 gem 'nokogiri'
 gem 'logger'
 gem 'colorize'
-gem 'bunny'
+
+if RUBY_ENGINE == 'jruby'
+	gem "march_hare", "~> 2.16.0"
+else
+	gem 'bunny'
+	gem 'mysql2'
+end

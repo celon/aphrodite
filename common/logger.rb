@@ -28,7 +28,7 @@ class ZWYLogger
 		if str.is_a?(Exception)
 			log_int getExceptionStackInfo(str).light_magenta
 		else
-			log_int str.to_s.light_magenta + "\n" +  getStackInfo(caller).light_magenta
+			log_int str.to_s.light_magenta
 		end
 	end
 

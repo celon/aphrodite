@@ -2,12 +2,21 @@ class MysqlDAO
 	include EncodeUtil
 	include CacheUtil
 
+
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
+		if @mysql2_enabled && defined?(Mysql2).nil?
+			LOGGER.warn "Can not load Mysql2 gem, switch back to mysql."
+			@mysql2_enabled = false
+		end
 		@dbconn_mutex = Mutex.new
 		@thread_safe = opt[:thread_safe] == true
 		init_dbclient
+	end
+
+	def mysql2_enabled?
+		@mysql2_enabled
 	end
 
 	def init_dbclient
@@ -30,7 +39,7 @@ class MysqlDAO
 				else
 					dbclient = Mysql.init
 					dbclient.options Mysql::SET_CHARSET_NAME, 'utf8'
-					port = DB_PORT if defined? MysqlDAO::DB_PORT
+					port = DB_PORT if defined? DB_PORT
 					dbclient.real_connect(DB_HOST, DB_USER, DB_PSWD, DB_NAME, DB_PORT)
 					break
 				end
@@ -47,7 +56,11 @@ class MysqlDAO
 		init_dbclient if @dbclient.nil?
 		while true
 			begin
-				return @dbclient.list_tables
+				tables = []
+				dbclient_query('show tables').each do |row|
+					tables.push row[0]
+				end
+				return tables
 			rescue => e
 				if e.message == "MySQL server has gone away"
 					LOGGER.info(e.message + ", retry.")
@@ -97,7 +110,7 @@ class MysqlDAO
 	end
 
 	# Ret: 0:update, 1:insert, -1:error
-	def insertOrUpdate(sqlInsert, sqlUpdate = nil, log = false)
+	def insert_update(sqlInsert, sqlUpdate = nil, log = false)
 		while true
 			# Try insert, otherwise update.
 			begin
