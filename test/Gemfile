@@ -1,0 +1,8 @@
+source 'https://rubygems.org'
+
+if RUBY_ENGINE == 'jruby'
+	gem 'guard-jruby-minitest'
+end
+
+# Install gems from Gemfiles dir.
+eval(IO.read("#{File.dirname(__FILE__)}/../Gemfile"), binding)
