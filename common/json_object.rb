@@ -19,18 +19,18 @@ class JSONObject < Hash
 		if symbol[-1] == '?' && args.empty?
 			# self.xxx?
 			return super(symbol, *args) if symbol.size == 1
-			val = self.[] symbol[0..-2].to_sym
+			val = self.[] symbol[0..-2].to_s
 			return true if val == true
 			return false if val.nil? || val == false
 			return super(symbol, *args)
 		elsif symbol[-1] == '=' && args.size == 1
 			# self.xxx = yyy
 			return super(symbol, *args) if symbol.size == 1
-			self.[]= symbol[0..-2].to_sym, args[0]
+			self.[]= symbol[0..-2].to_s, args[0]
 			return args[0]
 		elsif args.empty?
 			# self.xxx
-			val = self.[] symbol
+			val = self.[] symbol.to_s
 			return val
 		else
 			return super(symbol, *args)

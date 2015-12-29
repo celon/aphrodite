@@ -85,13 +85,67 @@ class TestDao < TestBoard
 
 	def test_dao
 		@daos.each do |dao|
-			assert dao.list_tables != nil
+			# Create test table.
+			create_table_sql = <<SQL
+			CREATE TABLE `test_dao` (
+				`tid` bigint(20) NOT NULL,
+				`price` double(16,8) NOT NULL,
+				`amount` double(16,8) NOT NULL,
+				`type` tinyint(2) NOT NULL,
+				PRIMARY KEY (`tid`)
+			) ENGINE=`InnoDB` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ROW_FORMAT=COMPACT CHECKSUM=0 DELAY_KEY_WRITE=0;
+SQL
+			dao.query 'DROP TABLE IF EXISTS test_dao;'
+			dao.query create_table_sql
+			assert dao.list_tables.include?('test_dao')
 			assert dao.dbclient_query('show processlist') != nil
+
+			# Test writing new record.
+			clazz = dao.getClass 'test_dao'
+			data = clazz.new tid:1, price:2.2, amount:3.3, type:1
+			dao.saveObj data
+			all_data = dao.queryObjs 'test_dao'
+			assert_equal all_data.size, 1
+			assert_equal all_data[0].tid, 1
+			assert_equal all_data[0].price, 2.2
+			assert_equal all_data[0].amount, 3.3
+			assert_equal all_data[0].type, 1
+			# Pack and parse.
+			data = clazz.new data.to_hash
+			# Test updating record.
+			data.price = 4.4
+			data.save true
+			all_data = dao.queryObjs 'test_dao'
+			assert_equal all_data.size, 1
+			assert_equal all_data[0].tid, 1
+			assert_equal all_data[0].price, 4.4
+			assert_equal all_data[0].amount, 3.3
+			assert_equal all_data[0].type, 1
+
+			@dao.query 'DROP TABLE IF EXISTS test_dao;'
+			assert (dao.list_tables.include?('test_dao') == false)
 		end
 	end
 
 	def teardown
 		super
 		@daos.each { |d| d.close }
+	end
+end
+
+class TestJSONObj < TestBoard
+	def test_jsonobj
+		j = JSONObject.new
+		j['a'] = 'xxyy'
+		puts j.a
+		assert_equal j.a, 'xxyy'
+		assert_equal j.a, j['a']
+		j.b = j
+		assert_equal j['b'], j
+		assert_equal j['b'].a, 'xxyy'
+		assert_equal j.b.a, 'xxyy'
+		j.c = true
+		assert j['c']
+		assert j.c
 	end
 end
