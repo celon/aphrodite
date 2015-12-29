@@ -137,7 +137,6 @@ class TestJSONObj < TestBoard
 	def test_jsonobj
 		j = JSONObject.new
 		j['a'] = 'xxyy'
-		puts j.a
 		assert_equal j.a, 'xxyy'
 		assert_equal j.a, j['a']
 		j.b = j
