@@ -20,10 +20,10 @@ class TestUtil < TestBoard
 	def setup
 		super
 		@target_class = Class.new do
-			include SpiderUtil
-			include EncodeUtil
-			include CacheUtil
-			include MQUtil
+			include APD::SpiderUtil
+			include APD::EncodeUtil
+			include APD::CacheUtil
+			include APD::MQUtil
 		end
 		@instance = @target_class.new
 	end
@@ -77,8 +77,8 @@ end
 class TestDao < TestBoard
 	def setup
 		super
-		@dao = DynamicMysqlDao.new mysql2:false
-		@dao2 = DynamicMysqlDao.new mysql2:true
+		@dao = APD::DynamicMysqlDao.new mysql2:false
+		@dao2 = APD::DynamicMysqlDao.new mysql2:true
 		assert @dao2.mysql2_enabled? if RUBY_ENGINE != 'jruby'
  		@daos = [@dao, @dao2]
 	end
@@ -135,7 +135,7 @@ end
 
 class TestJSONObj < TestBoard
 	def test_jsonobj
-		j = JSONObject.new
+		j = APD::JSONObject.new
 		j['a'] = 'xxyy'
 		assert_equal j.a, 'xxyy'
 		assert_equal j.a, j['a']

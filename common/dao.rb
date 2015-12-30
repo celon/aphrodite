@@ -1,13 +1,12 @@
-class MysqlDAO
+class MysqlDao
 	include EncodeUtil
 	include CacheUtil
-
 
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
 		if @mysql2_enabled && defined?(Mysql2).nil?
-			LOGGER.warn "Can not load Mysql2 gem, switch back to mysql."
+			Logger.warn "Can not load Mysql2 gem, switch back to mysql."
 			@mysql2_enabled = false
 		end
 		@dbconn_mutex = Mutex.new
@@ -24,16 +23,16 @@ class MysqlDAO
 		unless @activeRecordPool.nil?
 			@poolAdapter = @activeRecordPool.checkout
 			@dbclient = @poolAdapter.raw_connection
-			LOGGER.info "Checkout a conn from ActiveRecord pool."
+			Logger.info "Checkout a conn from ActiveRecord pool."
 			return
 		end
 		dbclient = nil
 		while true do
 			begin
-				LOGGER.info "Initialize MySQL to #{DB_USER}@#{DB_HOST}"
+				Logger.info "Initialize MySQL to #{DB_USER}@#{DB_HOST}"
 				if @mysql2_enabled
-					LOGGER.highlight "Use mysql2 lib."
-					port = DB_PORT if defined? MysqlDAO::DB_PORT
+					Logger.highlight "Use mysql2 lib."
+					port = DB_PORT if defined? MysqlDao::DB_PORT
 					dbclient = Mysql2::Client.new host: DB_HOST, port: port, username: DB_USER, password: DB_PSWD, database: DB_NAME, encoding: 'utf8', reconnect:true, as: :array
 					break
 				else
@@ -45,7 +44,7 @@ class MysqlDAO
 				end
 			rescue Exception
 				errInfo = $!.message
-				LOGGER.error ("Error in connecting DB, will retry:" + errInfo)
+				Logger.error ("Error in connecting DB, will retry:" + errInfo)
 				sleep 2
 			end
 		end
@@ -63,13 +62,13 @@ class MysqlDAO
 				return tables
 			rescue => e
 				if e.message == "MySQL server has gone away"
-					LOGGER.info(e.message + ", retry.")
+					Logger.info(e.message + ", retry.")
 					sleep 1
 					init_dbclient
 					next
 				end
-				LOGGER.error "Error in listing tables."
-				LOGGER.error e
+				Logger.error "Error in listing tables."
+				Logger.error e
 				return -1
 			end
 		end
@@ -91,19 +90,19 @@ class MysqlDAO
 		init_dbclient if @dbclient.nil?
 		while true
 			begin
-				LOGGER.debug sql if log == true
+				Logger.debug sql if log == true
 				return dbclient_query(sql)
 			rescue => e
 				if e.message == "MySQL server has gone away"
-					LOGGER.info(e.message + ", retry.")
+					Logger.info(e.message + ", retry.")
 					sleep 1
 					init_dbclient
 					next
 				elsif e.message.start_with? "Duplicate entry "
 					raise e
 				end
-				LOGGER.error "Error in querying sql:#{sql}"
-				LOGGER.error e
+				Logger.error "Error in querying sql:#{sql}"
+				Logger.error e
 				return -1
 			end
 		end
@@ -114,12 +113,12 @@ class MysqlDAO
 		while true
 			# Try insert, otherwise update.
 			begin
-				LOGGER.debug sqlInsert if log == true
+				Logger.debug sqlInsert if log == true
 				dbclient_query(sqlInsert)
 				return 1
 			rescue => e
 				if e.message == "MySQL server has gone away"
-					LOGGER.info(e.message + ", retry.")
+					Logger.info(e.message + ", retry.")
 					sleep 1
 					init_dbclient
 					next
@@ -129,8 +128,8 @@ class MysqlDAO
 					return -1 if ret == -1
 					return 0
 				else
-					LOGGER.error "Error in inserting sql:#{sqlInsert}"
-					LOGGER.error e
+					Logger.error "Error in inserting sql:#{sqlInsert}"
+					Logger.error e
 					return -1
 				end
 			end
@@ -140,7 +139,7 @@ class MysqlDAO
 	def close
 		if @activeRecordPool != nil
 			unless @poolAdapter.nil?
-				LOGGER.info "Checkin a conn from ActiveRecord pool."
+				Logger.info "Checkin a conn from ActiveRecord pool."
 				@activeRecordPool.checkin @poolAdapter
 				@poolAdapter = nil
 				@dbclient = nil
@@ -149,12 +148,12 @@ class MysqlDAO
 		end
 		begin
 			if @dbclient != nil
-				LOGGER.info "Closing MySQL conn #{DB_USER}@#{DB_HOST}"
+				Logger.info "Closing MySQL conn #{DB_USER}@#{DB_HOST}"
 				@dbclient.close 
 			end
 		rescue => e
-			LOGGER.error "Error in closing DB Conn."
-			LOGGER.error e
+			Logger.error "Error in closing DB Conn."
+			Logger.error e
 		end
 	end
 end
@@ -210,17 +209,17 @@ class DynamicMysqlObj
 	end
 
 	def save(update = false)
-		LOGGER.highlight "WARNING: DynamicMysqlObj.save is not thread-safe." if Thread.current != Thread.main
+		Logger.highlight "WARNING: DynamicMysqlObj.save is not thread-safe." if Thread.current != Thread.main
 		self.class.mysql_dao.saveObj self, update
 	end
 
 	def delete(real = false)
-		LOGGER.highlight "WARNING: DynamicMysqlObj.delete is not thread-safe." if Thread.current != Thread.main
+		Logger.highlight "WARNING: DynamicMysqlObj.delete is not thread-safe." if Thread.current != Thread.main
 		self.class.mysql_dao.deleteObj self, real
 	end
 end
 
-class DynamicMysqlDao < MysqlDAO
+class DynamicMysqlDao < MysqlDao
 	include EncodeUtil
 	using EncodeRefine
 
@@ -260,7 +259,7 @@ class DynamicMysqlDao < MysqlDAO
 
 	def getClass_int(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
-		LOGGER.debug "Detecting table[#{table}] structure."
+		Logger.debug "Detecting table[#{table}] structure."
 		selectSql = "SELECT "
 		attrs = {}
 		priAttrs = []
@@ -274,7 +273,7 @@ class DynamicMysqlDao < MysqlDAO
 				end
 			end
 			priAttrs << key if key == 'PRI'
-			# LOGGER.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}"
+			# Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}"
 			throw Exception.new("Unsupported type[#{type}], fitStructure failed.") if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
@@ -284,10 +283,10 @@ class DynamicMysqlDao < MysqlDAO
 			if Object.const_defined? className
 				throw Exception.new("Cannot generate class #{className}, const conflict.") if Object.const_defined? className
 			else
-				LOGGER.highlight "Generate class #{className} instead, because const conflict."
+				Logger.highlight "Generate class #{className} instead, because const conflict."
 			end
 		end
-		LOGGER.debug "Generate class[#{className}] for #{table}"
+		Logger.debug "Generate class[#{className}] for #{table}"
 		# Prepare attr_accessor
 		attrCode = ""
 		attrs.keys.each { |a| attrCode << ":#{DynamicMysqlObj.mysqlCol2attrName(a)}, " }
@@ -417,7 +416,7 @@ class DynamicMysqlDao < MysqlDAO
 			query sql
 		else
 			throw Exception.new("#{obj.class} do not contain column[deleted]") unless obj.respond_to? :deleted=
-			return LOGGER.warn "obj is already marked as deleted." if obj.deleted
+			return Logger.warn "obj is already marked as deleted." if obj.deleted
 			obj.deleted = true
 			saveObj obj, true
 		end
@@ -432,7 +431,7 @@ class DynamicMysqlDao < MysqlDAO
 			dynDao.saveObj o[0]
 			o = dynDao.queryObjs(t, "limit 1")
 			newData = o.to_json
-			LOGGER.error "Failed\nOLD:#{oldData}\nNEW:#{newData}" if oldData != newData
+			Logger.error "Failed\nOLD:#{oldData}\nNEW:#{newData}" if oldData != newData
 		end
 	end
 end

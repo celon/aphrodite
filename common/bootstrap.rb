@@ -4,33 +4,38 @@
 require 'rubygems'
 require 'bundler/setup'
 
-def require_try(lib)
-	begin
-		require lib
-	rescue LoadError => e
-		puts "Fail to load [#{lib}], skip."
-	end
-end
-
-def require_anyof(*libs)
-	success = false
-	error = nil
-	libs.each do |lib|
+# All Aphrodite methods and classes will be put in this namespace,
+# which could be renamed easily.
+module APD
+	def self.require_try(lib)
 		begin
 			require lib
-			success = true
-			break
 		rescue LoadError => e
-			error = e
-			puts "Fail to load [#{lib}], try optional choice."
-			next
+			puts "Fail to load [#{lib}], skip."
 		end
 	end
-	raise error unless success
+	
+	def self.require_anyof(*libs)
+		success = false
+		error = nil
+		libs.each do |lib|
+			begin
+				require lib
+				success = true
+				break
+			rescue LoadError => e
+				error = e
+				puts "Fail to load [#{lib}], try optional choice."
+				next
+			end
+		end
+		raise error unless success
+	end
 end
+target_module = APD
 
-require_anyof 'bunny', 'march_hare'
-require_try 'mysql2'
+target_module.require_anyof 'bunny', 'march_hare'
+target_module.require_try 'mysql2'
 
 require 'uri'
 require 'open-uri'
@@ -43,8 +48,20 @@ require 'colorize'
 require 'json'
 require 'base64'
 
-# Load refinement and utility before regular files.
-require_relative './refine'
-require_relative './util'
+# Load all script in given namespace.
+module APD
+	dir = File.dirname(File.absolute_path(__FILE__))
+	# Load refinement and utility before regular files.
+	processed_file = ["#{dir}/bootstrap.rb"]
+	first_batch = ['refine', 'util'].map { |f| "#{dir}/#{f}.rb" }
+	first_batch.each do |f|
+ 		eval File.read(f), binding, File.basename(f)
+	end
+	processed_file += first_batch
 
-Dir["#{File.dirname(__FILE__)}/*.rb"].each { |f| require f }
+	# Load regular files.
+	batch = Dir["#{dir}/*.rb"] - processed_file
+	batch.each do |f|
+ 		eval File.read(f), binding, File.basename(f)
+	end
+end

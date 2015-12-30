@@ -1,6 +1,6 @@
 if defined? using == 'method'
 	module EncodeRefine
-		refine DateTime do
+		refine ::DateTime do
 			def toMySQLFormat
 				self.strftime "%Y-%m-%d %H:%M:%S"
 			end
@@ -10,7 +10,7 @@ if defined? using == 'method'
 			end
 		end
 	
-		refine Fixnum do
+		refine ::Fixnum do
 			def strftime(format='%FT%T%:z')
 				if self > 9999999999
 					return Date.strptime(self.to_s, '%Q').strftime format
@@ -19,7 +19,7 @@ if defined? using == 'method'
 			end
 		end
 	
-		refine String do
+		refine ::String do
 			def strftime(format='%FT%T%:z')
 				DateTime.parse(self).strftime format
 			end
@@ -30,11 +30,13 @@ else
 	module EncodeRefine
 	end
 
-	def using(module_name)
-		puts "WARNING!!! Current ruby implementation does not support keyword[using], use monkey patch instead."
+	Kernel.module_eval do
+		def using(module_name)
+			puts "WARNING!!! Current ruby engine [#{RUBY_ENGINE}] does not support keyword[using], use monkey patch instead."
+		end
 	end
 
-	class DateTime
+	class ::DateTime
 		def toMySQLFormat
 			self.strftime "%Y-%m-%d %H:%M:%S"
 		end
@@ -44,7 +46,7 @@ else
 		end
 	end
 
-	class Fixnum
+	class ::Fixnum
 		def strftime(format='%FT%T%:z')
 			if self > 9999999999
 				return Date.strptime(self.to_s, '%Q').strftime format
@@ -53,7 +55,7 @@ else
 		end
 	end
 
-	class String
+	class ::String
 		def strftime(format='%FT%T%:z')
 			DateTime.parse(self).strftime format
 		end

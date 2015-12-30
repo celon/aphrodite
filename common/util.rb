@@ -23,7 +23,7 @@ module SpiderUtil
 				end
 				return doc
 			rescue => e
-				LOGGER.debug "error in parsing web:#{e.message}"
+				Logger.debug "error in parsing web:#{e.message}"
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
 				sleep 1
@@ -41,7 +41,7 @@ module SpiderUtil
 				end
 				return doc
 			rescue => e
-				LOGGER.debug "error in downloading #{url}: #{e.message}"
+				Logger.debug "error in downloading #{url}: #{e.message}"
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
 				sleep 1
@@ -54,7 +54,7 @@ module SpiderUtil
 		tmpFile = "#{Time.now.to_i}_#{rand(10000)}.html"
 		cmd = "java -jar #{jarpath} '#{url}' #{tmpFile}"
 		ret = system(cmd)
-		LOGGER.debug("#{cmd} --> #{ret}")
+		Logger.debug("#{cmd} --> #{ret}")
 		result = ""
 		if File.exist?(tmpFile)
 			result = File.open(tmpFile, "rb").read
@@ -78,11 +78,11 @@ module CycleWorker
 		verbose = opt[:verbose]
 		while true
 			@cycle_roundct += 1
-			LOGGER.debug "CycleWorker round##{@cycle_roundct} start." if verbose
+			Logger.debug "CycleWorker round##{@cycle_roundct} start." if verbose
 			start_t = Time.now
 			cycle_work
 			end_t = Time.now
-			LOGGER.debug "CycleWorker round##{@cycle_roundct} finished." if verbose
+			Logger.debug "CycleWorker round##{@cycle_roundct} finished." if verbose
 			sleep_time = @cycle_roundtime - (end_t - start_t)
 			sleep sleep_time if sleep_time > 0
 		end
@@ -150,11 +150,11 @@ module MQUtil
 	def mq_connect(opt={})
 		# Use Bunny, otherwise March-hare
 		if defined? Bunny
-			LOGGER.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
+			Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
 			@mq_march_hare = false
 			@mq_conn = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		else
-			LOGGER.warn "Use march_hare instead of bunny." if opt[:march_hare] == false
+			Logger.warn "Use march_hare instead of bunny." if opt[:march_hare] == false
 			@mq_march_hare = true
 			@mq_conn = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		end
@@ -192,9 +192,9 @@ module MQUtil
 			payload = piece
 			payload = payload.to_json unless payload.is_a? String
 			@mq_channel.default_exchange.publish payload, routing_key:route_key
-			LOGGER.debug "MQUtil: msg #{payload}" if verbose
+			Logger.debug "MQUtil: msg #{payload}" if verbose
 		end
-		LOGGER.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
+		Logger.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
 	end
 
 	def mq_consume(queue, options={})
@@ -223,10 +223,10 @@ module MQUtil
 		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
 	
-		LOGGER.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
+		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
 	
 		unless mq_exists? queue
-			LOGGER.highlight "MQ[#{queue}] not exist, abort."
+			Logger.highlight "MQ[#{queue}] not exist, abort."
 			return -1
 		end
 		@mq_channel.basic_qos(prefetch_num) unless prefetch_num.nil?
@@ -234,7 +234,7 @@ module MQUtil
 		err_q = mq_createq "#{queue}_err"
 		totalCount = q.message_count
 		processedCount = 0
-		LOGGER.debug "Subscribe MQ:#{queue} count:[#{totalCount}]"
+		Logger.debug "Subscribe MQ:#{queue} count:[#{totalCount}]"
 		return 0 if totalCount == 0 and exitOnEmpty
 		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.
@@ -250,7 +250,7 @@ module MQUtil
 			processedCount += 1
 			success = true
 			begin
-				LOGGER.info "[#{q.name}:#{processedCount}/#{totalCount}]: #{show_full_body ? body : body[0..40]}" unless silent
+				Logger.info "[#{q.name}:#{processedCount}/#{totalCount}]: #{show_full_body ? body : body[0..40]}" unless silent
 				json = JSON.parse body
 				# Process json in yield, save if needed.
 				success = yield(json, dao) if block_given?
@@ -262,13 +262,13 @@ module MQUtil
 				exit! if debug
 				# Send ACK.
 				if success == false && noack_on_err
-					LOGGER.debug "noack_on_err is ON, this msg will not ACK."
+					Logger.debug "noack_on_err is ON, this msg will not ACK."
 				else
 					@mq_channel.ack delivery_tag
 				end
 			rescue => e
-				LOGGER.highlight "--> [#{q.name}]: #{body}"
-				LOGGER.error e
+				Logger.highlight "--> [#{q.name}]: #{body}"
+				Logger.error e
 				# Redirect to err queue only if exception occurred.
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name)
 				exit!
@@ -282,7 +282,7 @@ module MQUtil
 			end
 		end
 		begin
-			LOGGER.debug "Closing connection."
+			Logger.debug "Closing connection."
 			clazz.mysql_dao.close unless tableName.nil?
 		rescue
 		end
