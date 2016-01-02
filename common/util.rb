@@ -142,7 +142,58 @@ module CacheUtil
 	end
 end
 
+module LockUtil
+	def self.included(clazz)
+		super
+		# Modify included class, add feature 'thread_safe'
+		clazz.singleton_class.class_eval do
+			define_method(:attr_lazyload_threadsafe) do |var, method|
+				var = var.to_sym
+				method = method.to_sym
+				# method -> method_without_lock
+				old_method_sym = "#{method.to_s}_without_lock".to_sym
+				alias_method old_method_sym, method
+				# Wrap method with lock.
+				clazz.class_eval do
+					define_method(:method_locks) do
+						@method_locks ||= {}
+					end
+					define_method(:method_lock_get) do |m|
+						@method_locks ||= {}
+						@method_locks[m] ||= Mutex.new
+					end
+					define_method(method) do |*args|
+						ret = instance_variable_get var
+						# Be optimistic.
+						return ret unless ret.nil?
+						mutex = method_lock_get method
+						mutex.lock
+						ret = instance_variable_get var
+						# Be optimistic, again.
+						if ret.nil? == false
+							mutex.unlock
+							return ret
+						end
+						# Do the job.
+						ret = if args.nil? || args.empty?
+							send old_method_sym
+						else
+							send old_method_sym, *args
+						end
+						instance_variable_set var, ret
+						# Release lock finally.
+						mutex.unlock
+						ret
+					end
+				end
+			end
+		end
+	end
+end
+
 module MQUtil
+	include LockUtil
+
 	def mq_march_hare?
 		@mq_march_hare
 	end
@@ -152,25 +203,28 @@ module MQUtil
 		if defined? Bunny
 			Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
 			@mq_march_hare = false
-			@mq_conn = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+			mq_conn_int = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		else
 			Logger.warn "Use march_hare instead of bunny." if opt[:march_hare] == false
 			@mq_march_hare = true
-			@mq_conn = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+			mq_conn_int = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		end
 		@mysql2_enabled = opt[:mysql2] == true
-		@mq_conn.start
+		mq_conn_int.start
 		@mq_qlist = {}
-		@mq_channel = @mq_conn.create_channel
+		@mq_channel = mq_conn_int.create_channel
+		@mq_conn = mq_conn_int
 	end
+	attr_lazyload_threadsafe :@mq_conn, :mq_connect
 
 	def mq_close
 		@mq_channel.close
 		@mq_conn.close
+		@mq_conn = nil
 	end
 
 	def mq_createq(route_key)
-		@mq_channel ||= mq_connect
+		mq_connect
 		q = @mq_channel.queue(route_key, :durable => true)
 		@mq_qlist[route_key] = true
 		q
@@ -178,12 +232,12 @@ module MQUtil
 
 	def mq_exists?(queue)
 		return true if mq_march_hare?
-		@mq_channel ||= mq_connect
+		mq_connect
 		@mq_conn.queue_exists? queue
 	end
 
 	def mq_push(route_key, content, opt={})
-		@mq_channel ||= mq_connect
+		mq_connect
 		verbose = opt[:verbose]
 		mq_createq route_key if @mq_qlist[route_key].nil?
 		content = [*content]
@@ -198,7 +252,7 @@ module MQUtil
 	end
 
 	def mq_consume(queue, options={})
-		@mq_channel ||= mq_connect
+		mq_connect
 		if options[:thread]
 			options[:thread] = false
 			return Thread.new do
@@ -222,6 +276,7 @@ module MQUtil
 		prefetch_num = options[:prefetch_num]
 		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
+		mqc_name = (options[:header] || '')
 	
 		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
 	
@@ -232,10 +287,10 @@ module MQUtil
 		@mq_channel.basic_qos(prefetch_num) unless prefetch_num.nil?
 		q = mq_createq queue
 		err_q = mq_createq "#{queue}_err"
-		totalCount = q.message_count
+		remain_ct = q.message_count
 		processedCount = 0
-		Logger.debug "Subscribe MQ:#{queue} count:[#{totalCount}]"
-		return 0 if totalCount == 0 and exitOnEmpty
+		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]"
+		return 0 if remain_ct == 0 and exitOnEmpty
 		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.
 			delivery_tag, consumer, body = nil, nil, nil
@@ -250,7 +305,7 @@ module MQUtil
 			processedCount += 1
 			success = true
 			begin
-				Logger.info "[#{q.name}:#{processedCount}/#{totalCount}]: #{show_full_body ? body : body[0..40]}" unless silent
+				Logger.info "#{mqc_name}[#{q.name}:#{processedCount}/#{remain_ct}]: #{show_full_body ? body : body[0..40]}" unless silent
 				json = JSON.parse body
 				# Process json in yield, save if needed.
 				success = yield(json, dao) if block_given?
@@ -273,7 +328,7 @@ module MQUtil
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name)
 				exit!
 			end
-			if processedCount == totalCount and exitOnEmpty
+			if processedCount == remain_ct and exitOnEmpty
 				if mq_march_hare?
 					break
 				else

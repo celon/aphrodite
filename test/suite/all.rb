@@ -55,8 +55,10 @@ class TestUtil < TestBoard
 	end
 
 	def test_mq_util
-		[true, false].each do |mode|
-			@instance.mq_connect march_hare:mode
+		[false, true].each do |mq_mode|
+		[false, true].each do |thread_mode|
+		[1, 10, 200].each do |prefetch_num|
+			@instance.mq_connect march_hare:mq_mode
 			@instance.mq_createq 'test'
 			# Clear queue first.
 			@instance.mq_consume('test', exitOnEmpty:true, silent:true)
@@ -64,12 +66,19 @@ class TestUtil < TestBoard
 			total_ct = 1000
 			total_ct.times { @instance.mq_push 'test', data.to_json }
 			ct = 0
-			@instance.mq_consume('test', exitOnEmpty:true, silent:true) do |d, dao|
+			threads = []
+			t1 = @instance.mq_consume('test', prefetch_num:prefetch_num, thread:thread_mode, exitOnEmpty:true, silent:true) do |d, dao|
 				ct += 1
 				assert_equal d, data
 			end
-			assert_equal ct, total_ct
+			threads.push t1
+			if thread_mode
+				threads.each { |t| t.join }
+			end
+			assert_equal total_ct, ct, "mq_mode:#{mq_mode}, thread_mode:#{thread_mode}"
 			@instance.mq_close
+		end
+		end
 		end
 	end
 end
