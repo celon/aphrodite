@@ -1,3 +1,47 @@
+#################################################
+# Meta-programming utils placed first.
+#################################################
+module LockUtil
+	def self.included(clazz)
+		super
+		# add feature DSL 'thread_safe'
+		# add instance methods: method_locks, method_lock_get, __get_lock4_(method_name)
+		clazz.singleton_class.class_eval do
+			define_method(:thread_safe) do |*methods|
+				methods.each do |method|
+					method = method.to_sym
+					# method -> method_without_threadsafe
+					old_method_sym = "#{method}_without_threadsafe".to_sym
+					alias_method old_method_sym, method
+					clazz.class_eval do
+						define_method(:method_locks) { instance_variable_get :@method_locks }
+						define_method(:method_lock_get) { |m| send("__get_lock4_#{m}".to_sym) }
+						# All target methods share one mutex.
+						define_method("__get_lock4_#{method}".to_sym) do
+							instance_variable_set(:@method_locks, {}) if method_locks.nil?
+							return method_locks[method] unless method_locks[method].nil?
+							# Init mutex for all methods.
+							mutex = Mutex.new
+							methods.each { |m| method_locks[m] = mutex }
+							mutex
+						end
+						# Wrap old method with lock.
+						define_method(method) do |*args, &block|
+							method_lock_get(method).lock
+							ret = send old_method_sym, *args, &block
+							method_lock_get(method).unlock
+							ret
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+#################################################
+# Utility modules below
+#################################################
 module SpiderUtil
 	def parse_web(url, encoding = nil, max_ct = -1)
 		doc = nil
@@ -139,52 +183,6 @@ module CacheUtil
 	def clear_redis_by_table(table)
 		cmd = "local keys = redis.call('keys', ARGV[1]) for i=1,#keys,5000 do redis.call('del', unpack(keys, i, math.min(i+4999, #keys))) end return keys";
 		@redis.eval(cmd, [], ["SQL_BUFFER:#{table}:*"])
-	end
-end
-
-module LockUtil
-	def self.included(clazz)
-		super
-		# add feature DSL 'thread_safe'
-		# add instance methods: method_locks, method_lock_get, __get_lock4_(method_name)
-		clazz.singleton_class.class_eval do
-			define_method(:thread_safe) do |*methods|
-				methods.each do |method|
-					method = method.to_sym
-					# method -> method_without_threadsafe
-					old_method_sym = "#{method}_without_threadsafe".to_sym
-					alias_method old_method_sym, method
-					clazz.class_eval do
-						define_method(:method_locks) do
-							instance_variable_get :@method_locks
-						end
-						# All target methods share one mutex.
-						define_method(:method_lock_get) do |m|
-							send("__get_lock4_#{m}".to_sym)
-						end
-						define_method("__get_lock4_#{method}".to_sym) do
-							instance_variable_set(:@method_locks, {}) if method_locks.nil?
-							return method_locks[method] unless method_locks[method].nil?
-							# Init mutex for all methods.
-							mutex = Mutex.new
-							methods.each do |m|
-								method_locks[m] = mutex
-							end
-							mutex
-						end
-						# Wrap old method with lock.
-						define_method(method) do |*args, &block|
-							mtx = method_lock_get(method)
-							mtx.lock
-							ret = send old_method_sym, *args, &block
-							# Release lock finally.
-							mtx.unlock
-							ret
-						end
-					end
-				end
-			end
-		end
 	end
 end
 

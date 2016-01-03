@@ -1,6 +1,7 @@
 class MysqlDao
 	include EncodeUtil
 	include CacheUtil
+	include LockUtil
 
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
@@ -9,7 +10,6 @@ class MysqlDao
 			Logger.warn "Can not load Mysql2 gem, switch back to mysql."
 			@mysql2_enabled = false
 		end
-		@dbconn_mutex = Mutex.new
 		@thread_safe = opt[:thread_safe] == true
 		init_dbclient
 	end
@@ -50,6 +50,7 @@ class MysqlDao
 		end
 		@dbclient = dbclient
 	end
+	thread_safe :init_dbclient
 
 	def list_tables
 		init_dbclient if @dbclient.nil?
@@ -75,15 +76,7 @@ class MysqlDao
 	end
 
 	def dbclient_query(sql)
-		return @dbclient.query(sql) unless @thread_safe == true
-		@dbconn_mutex.lock
-		ret = nil
-		begin
-			ret = @dbclient.query(sql)
-		ensure
-			@dbconn_mutex.unlock
-		end
-		ret
+		@dbclient.query(sql)
 	end
 
 	def query(sql, log = false)
@@ -156,6 +149,8 @@ class MysqlDao
 			Logger.error e
 		end
 	end
+
+	thread_safe :dbclient_query, :close if @thread_safe
 end
 
 # Should be automatically generated from MySQL table schema.
