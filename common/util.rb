@@ -167,10 +167,10 @@ module LockUtil
 							mutex
 						end
 						# Wrap old method with lock.
-						define_method(method) do |*args|
+						define_method(method) do |*args, &block|
 							mtx = method_lock_get(method)
 							mtx.lock
-							ret = send old_method_sym, *args
+							ret = send old_method_sym, *args, &block
 							# Release lock finally.
 							mtx.unlock
 							ret
@@ -242,20 +242,24 @@ module MQUtil
 		end
 		Logger.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
 	end
+	thread_safe :mq_createq, :mq_exists?, :mq_push
 
 	def mq_consume(queue, options={})
 		mq_connect
 		if options[:thread]
 			options[:thread] = false
 			return Thread.new do
-				mq_consume(queue, options) do |o, dao|
+				mq_consume_int(queue, options) do |o, dao|
 					if block_given?
 						yield o, dao
 					end
 				end
 			end
 		end
-	
+		mq_consume_int(queue, options)
+	end
+
+	def mq_consume_int(queue, options={})
 		tableName = options[:table]
 		dao = DynamicMysqlDao.new mysql2_enabled: @mysql2_enabled
 		clazz = nil
@@ -330,7 +334,7 @@ module MQUtil
 		end
 		begin
 			Logger.debug "Closing connection."
-			clazz.mysql_dao.close unless tableName.nil?
+			dao.close
 		rescue
 		end
 		processedCount
