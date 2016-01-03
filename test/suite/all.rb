@@ -57,14 +57,16 @@ class TestUtil < TestBoard
 	def test_mq_util
 		[false, true].each do |mq_mode|
 		[false, true].each do |thread_mode|
-		[1, 10, 200].each do |prefetch_num|
+		[1, 10, 100].each do |prefetch_num|
 			@instance.mq_connect march_hare:mq_mode
 			@instance.mq_createq 'test'
 			# Clear queue first.
 			@instance.mq_consume('test', exitOnEmpty:true, silent:true)
 			data = { 'x' => 'y' }
-			total_ct = 1000
-			total_ct.times { @instance.mq_push 'test', data.to_json }
+			total_ct = 100
+			total_ct.times do
+				@instance.mq_push 'test', data.to_json
+			end
 			ct = 0
 			threads = []
 			t1 = @instance.mq_consume('test', prefetch_num:prefetch_num, thread:thread_mode, exitOnEmpty:true, silent:true) do |d, dao|
@@ -155,5 +157,45 @@ class TestJSONObj < TestBoard
 		j.c = true
 		assert j['c']
 		assert j.c
+	end
+end
+
+class TestLockUtil < TestBoard
+	def test_lock_util
+		test_class = Class.new do
+			include APD::LockUtil
+			def f; end
+			def f2; end
+			def f3; end
+			def f4; end
+			thread_safe :f, :f2
+			thread_safe :f3, :f4
+		end
+
+		c1 = test_class.new
+		c1.f
+		locks = c1.method_locks
+		assert_equal locks[:f], locks[:f2]
+		c1.f2
+		new_locks = c1.method_locks
+		assert_equal locks[:f], new_locks[:f]
+		assert_equal locks[:f], new_locks[:f2]
+		c1.f3
+		locks = c1.method_locks
+		assert (locks[:f3] != locks[:f]) 
+		c1.f4
+		assert (locks[:f3] != locks[:f]) 
+		assert (locks[:f4] != locks[:f]) 
+		assert_equal locks[:f3], new_locks[:f4]
+		
+		c2 = test_class.new
+		c2.f
+		new_locks = c2.method_locks
+		assert (locks[:f] != new_locks[:f])
+		assert_equal new_locks[:f], new_locks[:f2]
+		c2.f2
+		new_locks = c2.method_locks
+		assert (locks[:f] != new_locks[:f])
+		assert_equal new_locks[:f], new_locks[:f2]
 	end
 end

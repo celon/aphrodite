@@ -149,21 +149,27 @@ module LockUtil
 		# add instance methods: method_locks, method_lock_get, __get_lock4_(method_name)
 		clazz.singleton_class.class_eval do
 			define_method(:thread_safe) do |*methods|
-				mutex = Mutex.new
 				methods.each do |method|
 					method = method.to_sym
-					# method -> method_without_lock
+					# method -> method_without_threadsafe
 					old_method_sym = "#{method}_without_threadsafe".to_sym
 					alias_method old_method_sym, method
 					clazz.class_eval do
-						attr_reader :method_locks
+						define_method(:method_locks) do
+							instance_variable_get :@method_locks
+						end
 						# All target methods share one mutex.
 						define_method(:method_lock_get) do |m|
 							send("__get_lock4_#{m}".to_sym)
 						end
 						define_method("__get_lock4_#{method}".to_sym) do
-							@method_locks ||= {}
-							@method_locks[method] = mutex
+							instance_variable_set(:@method_locks, {}) if method_locks.nil?
+							return method_locks[method] unless method_locks[method].nil?
+							# Init mutex for all methods.
+							mutex = Mutex.new
+							methods.each do |m|
+								method_locks[m] = mutex
+							end
 							mutex
 						end
 						# Wrap old method with lock.
@@ -249,17 +255,13 @@ module MQUtil
 		if options[:thread]
 			options[:thread] = false
 			return Thread.new do
-				mq_consume_int(queue, options) do |o, dao|
+				mq_consume(queue, options) do |o, dao|
 					if block_given?
 						yield o, dao
 					end
 				end
 			end
 		end
-		mq_consume_int(queue, options)
-	end
-
-	def mq_consume_int(queue, options={})
 		tableName = options[:table]
 		dao = DynamicMysqlDao.new mysql2_enabled: @mysql2_enabled
 		clazz = nil
