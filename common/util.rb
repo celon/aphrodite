@@ -145,45 +145,36 @@ end
 module LockUtil
 	def self.included(clazz)
 		super
-		# Modify included class, add feature 'thread_safe'
+		# add feature DSL 'thread_safe'
+		# add instance methods: method_locks, method_lock_get, __get_lock4_(method_name)
 		clazz.singleton_class.class_eval do
-			define_method(:attr_lazyload_threadsafe) do |var, method|
-				var = var.to_sym
-				method = method.to_sym
-				# method -> method_without_lock
-				old_method_sym = "#{method.to_s}_without_lock".to_sym
-				alias_method old_method_sym, method
-				# Wrap method with lock.
-				clazz.class_eval do
-					define_method(:method_locks) do
-						@method_locks ||= {}
-					end
-					define_method(:method_lock_get) do |m|
-						@method_locks ||= {}
-						@method_locks[m] ||= Mutex.new
-					end
-					define_method(method) do |*args|
-						ret = instance_variable_get var
-						# Be optimistic.
-						return ret unless ret.nil?
-						mutex = method_lock_get method
-						mutex.lock
-						ret = instance_variable_get var
-						# Be optimistic, again.
-						if ret.nil? == false
-							mutex.unlock
-							return ret
+			define_method(:thread_safe) do |*methods|
+				mutex = Mutex.new
+				methods.each do |method|
+					method = method.to_sym
+					# method -> method_without_lock
+					old_method_sym = "#{method}_without_threadsafe".to_sym
+					alias_method old_method_sym, method
+					clazz.class_eval do
+						attr_reader :method_locks
+						# All target methods share one mutex.
+						define_method(:method_lock_get) do |m|
+							send("__get_lock4_#{m}".to_sym)
 						end
-						# Do the job.
-						ret = if args.nil? || args.empty?
-							send old_method_sym
-						else
-							send old_method_sym, *args
+						define_method("__get_lock4_#{method}".to_sym) do
+							@method_locks ||= {}
+							@method_locks[method] = mutex
+							mutex
 						end
-						instance_variable_set var, ret
-						# Release lock finally.
-						mutex.unlock
-						ret
+						# Wrap old method with lock.
+						define_method(method) do |*args|
+							mtx = method_lock_get(method)
+							mtx.lock
+							ret = send old_method_sym, *args
+							# Release lock finally.
+							mtx.unlock
+							ret
+						end
 					end
 				end
 			end
@@ -199,6 +190,7 @@ module MQUtil
 	end
 
 	def mq_connect(opt={})
+		return @mq_conn unless @mq_conn.nil?
 		# Use Bunny, otherwise March-hare
 		if defined? Bunny
 			Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
@@ -215,13 +207,13 @@ module MQUtil
 		@mq_channel = mq_conn_int.create_channel
 		@mq_conn = mq_conn_int
 	end
-	attr_lazyload_threadsafe :@mq_conn, :mq_connect
 
 	def mq_close
 		@mq_channel.close
 		@mq_conn.close
 		@mq_conn = nil
 	end
+	thread_safe :mq_connect, :mq_close
 
 	def mq_createq(route_key)
 		mq_connect
