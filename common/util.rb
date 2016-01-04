@@ -4,8 +4,12 @@
 module LockUtil
 	def self.included(clazz)
 		super
+		# add instance methods: method_locks, method_lock_get
+		clazz.class_eval do
+			define_method(:method_locks) { instance_variable_get :@method_locks }
+			define_method(:method_lock_get) { |m| send("__get_lock4_#{m}".to_sym) }
+		end
 		# add feature DSL 'thread_safe'
-		# add instance methods: method_locks, method_lock_get, __get_lock4_(method_name)
 		clazz.singleton_class.class_eval do
 			define_method(:thread_safe) do |*methods|
 				methods.each do |method|
@@ -14,8 +18,7 @@ module LockUtil
 					old_method_sym = "#{method}_without_threadsafe".to_sym
 					alias_method old_method_sym, method
 					clazz.class_eval do
-						define_method(:method_locks) { instance_variable_get :@method_locks }
-						define_method(:method_lock_get) { |m| send("__get_lock4_#{m}".to_sym) }
+						# add instance methods: __get_lock4_(method_name)
 						# All target methods share one mutex.
 						define_method("__get_lock4_#{method}".to_sym) do
 							instance_variable_set(:@method_locks, {}) if method_locks.nil?
