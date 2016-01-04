@@ -4,6 +4,7 @@ gem 'redis'
 gem 'nokogiri'
 gem 'logger'
 gem 'colorize'
+gem 'execjs'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.16.0"

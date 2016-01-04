@@ -22,6 +22,7 @@ class TestUtil < TestBoard
 		@target_class = Class.new do
 			include APD::SpiderUtil
 			include APD::EncodeUtil
+			include APD::LZString
 			include APD::CacheUtil
 			include APD::MQUtil
 		end
@@ -48,6 +49,8 @@ class TestUtil < TestBoard
 		assert_equal 'woofing_dog', (@instance.camel2Snake 'woofingDog')
 		str = 'abcdefg'
 		assert_equal str, @instance.decode64(@instance.encode64(str))
+		assert_equal 'x', @instance.lz_decompressFromBase64('B5A=')
+		assert_equal 'B5A=', @instance.lz_compressToBase64('x')
 	end
 
 	def test_cache_util

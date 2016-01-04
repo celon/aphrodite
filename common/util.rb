@@ -137,6 +137,20 @@ module CycleWorker
 
 	def cycle_work; end
 end
+
+module LZString
+	def lz_context
+		@lz_context ||= ExecJS.compile(File.read("#{APD_COMMON_PATH}/../res/lz-string.min.js"))
+	end
+
+	def lz_compressToBase64(string)
+		lz_context.call("LZString.compressToBase64", string)
+	end
+
+	def lz_decompressFromBase64(string)
+		lz_context.call("LZString.decompressFromBase64", string)
+	end
+end
 	
 module EncodeUtil
 	def encode64(data)
