@@ -97,7 +97,7 @@ module SpiderUtil
 	end
 	
 	def curl_javaver(url)
-		jarpath = "#{File.dirname(__FILE__)}/../res/curl.jar"
+		jarpath = "#{APD_COMMON_PATH}/res/curl.jar"
 		tmpFile = "#{Time.now.to_i}_#{rand(10000)}.html"
 		cmd = "java -jar #{jarpath} '#{url}' #{tmpFile}"
 		ret = system(cmd)
