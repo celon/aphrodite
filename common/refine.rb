@@ -1,11 +1,11 @@
 if defined? using == 'method'
 	module EncodeRefine
 		refine ::DateTime do
-			def toMySQLFormat
+			def to_mysql_time
 				self.strftime "%Y-%m-%d %H:%M:%S"
 			end
 	
-			def toYYYYmmdd
+			def to_yyyymmdd
 				self.strftime "%Y%m%d"
 			end
 		end
@@ -37,11 +37,11 @@ else
 	end
 
 	class ::DateTime
-		def toMySQLFormat
+		def to_mysql_time
 			self.strftime "%Y-%m-%d %H:%M:%S"
 		end
 
-		def toYYYYmmdd
+		def to_yyyymmdd
 			self.strftime "%Y%m%d"
 		end
 	end

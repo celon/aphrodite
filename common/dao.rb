@@ -277,6 +277,7 @@ class DynamicMysqlDao < MysqlDao
 		val = string
 		# Extract from package.
 		type.each do |t|
+ 			break if val.nil?
 			method = MYSQL_TYPE_MAP[t.to_sym]
 			throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
 			method = method.to_sym
@@ -292,6 +293,7 @@ class DynamicMysqlDao < MysqlDao
 				val = val.send method
 			end
 		end
+		return nil if val.nil?
 		val = val.force_encoding("UTF-8") if val.is_a? String
 		val
 	end
