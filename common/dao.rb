@@ -156,26 +156,28 @@ end
 # Should be automatically generated from MySQL table schema.
 class DynamicMysqlObj
 	extend EncodeUtil
+	include LockUtil
 
-	def setMysqlAttr(mysqlCol, val)
-		send "#{self.class.mysqlCol2attrName(mysqlCol)}=", val
+	def mysql_attr_set(mysqlCol, val)
+		send "#{self.class.mysql_col_to_attr_name(mysqlCol)}=", val
 	end
-	def getMysqlAttr(mysqlCol)
-		send self.class.mysqlCol2attrName(mysqlCol)
+	def mysql_attr_get(mysqlCol)
+		send self.class.mysql_col_to_attr_name(mysqlCol)
 	end
 
-	def self.mysqlCol2attrName(col)
-		snake2Camel(col)
+	def self.mysql_col_to_attr_name(col)
+		to_snake(col)
 	end
-	def self.mysqlTable2className(table)
-		snake2Camel(table, true)
+
+	def self.mysql_tab_to_class_name(table)
+		to_camel(table, true)
 	end
 
 	def to_hash
 		map = {}
 		self.class.mysql_attrs.each do |col, type|
-			name = self.class.mysqlCol2attrName(col)
-			map[name] = getMysqlAttr col
+			name = self.class.mysql_col_to_attr_name(col)
+			map[name] = mysql_attr_get col
 		end
 		map
 	end
@@ -186,12 +188,12 @@ class DynamicMysqlObj
 			# Check both in String and Symbol.
 			val = map[col]
 			val = map[col.to_sym] if val.nil?
-			name = self.class.mysqlCol2attrName(col)
+			name = self.class.mysql_col_to_attr_name(col)
 			val = map[name] if val.nil?
 			val = map[name.to_sym] if val.nil?
 			# Abort if still miss.
 			next if val.nil?
-			setMysqlAttr col, val
+			mysql_attr_set col, val
 		end
 	end
 
@@ -204,18 +206,18 @@ class DynamicMysqlObj
 	end
 
 	def save(update = false)
-		Logger.highlight "WARNING: DynamicMysqlObj.save is not thread-safe." if Thread.current != Thread.main
-		self.class.mysql_dao.saveObj self, update
+		self.class.mysql_dao.save self, update
 	end
 
 	def delete(real = false)
-		Logger.highlight "WARNING: DynamicMysqlObj.delete is not thread-safe." if Thread.current != Thread.main
-		self.class.mysql_dao.deleteObj self, real
+		self.class.mysql_dao.delete_obj self, real
 	end
+	thread_safe :save, :delete
 end
 
 class DynamicMysqlDao < MysqlDao
 	include EncodeUtil
+	include LockUtil
 	using EncodeRefine
 
 	MYSQL_TYPE_MAP = {
@@ -238,21 +240,8 @@ class DynamicMysqlDao < MysqlDao
 	}
 
 	MYSQL_CLASS_MAP = {}
-	DYNAMIC_CLASS_GENERATE_LOCK = Mutex.new
 
-	def getClass(table)
-		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
-		DYNAMIC_CLASS_GENERATE_LOCK.lock
-		ret = nil
-		begin
-			ret = getClass_int(table)
-		ensure
-			DYNAMIC_CLASS_GENERATE_LOCK.unlock
-		end
-		ret
-	end
-
-	def getClass_int(table)
+	def get_class(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
 		Logger.debug "Detecting table[#{table}] structure."
 		selectSql = "SELECT "
@@ -272,9 +261,9 @@ class DynamicMysqlDao < MysqlDao
 			throw Exception.new("Unsupported type[#{type}], fitStructure failed.") if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
-		className = DynamicMysqlObj.mysqlTable2className table
+		className = DynamicMysqlObj.mysql_tab_to_class_name table
 		if Object.const_defined? className
-			className = "#{className}Daobj"
+			className = "#{className}_DB"
 			if Object.const_defined? className
 				throw Exception.new("Cannot generate class #{className}, const conflict.") if Object.const_defined? className
 			else
@@ -284,7 +273,7 @@ class DynamicMysqlDao < MysqlDao
 		Logger.debug "Generate class[#{className}] for #{table}"
 		# Prepare attr_accessor
 		attrCode = ""
-		attrs.keys.each { |a| attrCode << ":#{DynamicMysqlObj.mysqlCol2attrName(a)}, " }
+		attrs.keys.each { |a| attrCode << ":#{DynamicMysqlObj.mysql_col_to_attr_name(a)}, " }
 		attrCode = "attr_accessor #{attrCode}" unless attrCode.empty?
 		attrCode.strip!
 		attrCode = attrCode[0..-2] if attrCode.end_with? ','
@@ -300,8 +289,9 @@ class DynamicMysqlDao < MysqlDao
 		MYSQL_CLASS_MAP[table] = clazz
 		Object.const_set className, clazz
 	end
+	thread_safe :get_class
 
-	def mysqlStr2val(string, type)
+	def parse_mysql_val(string, type)
 		return nil if string.nil?
 		return string.force_encoding("UTF-8") if type.empty?
 		val = string
@@ -326,7 +316,7 @@ class DynamicMysqlDao < MysqlDao
 		val
 	end
 
-	def val2mysqlStr(val, type)
+	def gen_mysql_val(val, type)
 		return 'NULL' if val.nil?
 		return "'#{val}'" if type.empty?
 		string = val
@@ -351,8 +341,8 @@ class DynamicMysqlDao < MysqlDao
 		val
 	end
 
-	def queryObjs(table, whereClause = "")
-		clazz = getClass table
+	def query_objs(table, whereClause = "")
+		clazz = get_class table
 		throw Exception.new("Cannot get class from table:#{table}") unless clazz.is_a? Class
 		sql = "select "
 		clazz.mysql_attrs.each { |name, type| sql << "#{name}, " }
@@ -362,8 +352,8 @@ class DynamicMysqlDao < MysqlDao
 			obj = clazz.new
 			ct = 0
 			clazz.mysql_attrs.each do |name, type|
-				val = mysqlStr2val row[ct], type
-				obj.setMysqlAttr name, val
+				val = parse_mysql_val row[ct], type
+				obj.mysql_attr_set name, val
 				ct += 1
 			end
 			ret << obj
@@ -371,19 +361,19 @@ class DynamicMysqlDao < MysqlDao
 		ret
 	end
 
-	def saveObjs(array, update = false)
+	def save_all(array, update = false)
 		throw Exception.new("Only receive obj arrays.") unless array.is_a? Array
-		array.each { |o| saveObj o, update }
+		array.each { |o| save o, update }
 	end
 
-	def saveObj(obj, update = false)
+	def save(obj, update = false)
 		throw Exception.new("Only DynamicMysqlObj could be operated.") unless obj.is_a? DynamicMysqlObj
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
 		setSql = ""
 		obj.class.mysql_attrs.each do |col, type|
-			val = obj.getMysqlAttr col
+			val = obj.mysql_attr_get col
 			next if val.nil?
-			setSql << "#{col}=#{val2mysqlStr(val, type)}, "
+			setSql << "#{col}=#{gen_mysql_val(val, type)}, "
 		end
 		setSql = setSql[0..-3]
 		sql << setSql
@@ -391,20 +381,20 @@ class DynamicMysqlDao < MysqlDao
 		query sql
 	end
 
-	def deleteObjs(array, real = false)
+	def delete_all(array, real = false)
 		throw Exception.new("Only receive obj arrays.") unless array.is_a? Array
-		array.each { |o| deleteObj o, real }
+		array.each { |o| delete_obj o, real }
 	end
 
-	def deleteObj(obj, real = false)
+	def delete_obj(obj, real = false)
 		throw Exception.new("Only DynamicMysqlObj could be operated.") unless obj.is_a? DynamicMysqlObj
 		if real
 			sql = "DELETE FROM #{obj.class.mysql_table} WHERE "
 			attrSql = ""
 			obj.class.mysql_attrs.each do |col, type|
-				val = obj.getMysqlAttr col
+				val = obj.mysql_attr_get col
 				next if val.nil?
-				attrSql << "#{col}=#{val2mysqlStr(val, type)} AND "
+				attrSql << "#{col}=#{gen_mysql_val(val, type)} AND "
 			end
 			attrSql = attrSql[0..-6]
 			sql << attrSql
@@ -413,20 +403,7 @@ class DynamicMysqlDao < MysqlDao
 			throw Exception.new("#{obj.class} do not contain column[deleted]") unless obj.respond_to? :deleted=
 			return Logger.warn "obj is already marked as deleted." if obj.deleted
 			obj.deleted = true
-			saveObj obj, true
-		end
-	end
-
-	def self.test
-		dynDao = DynamicMysqlDao.new
-		dynDao.list_tables.each do |t|
-			o = dynDao.queryObjs(t, "limit 1")
-			oldData = o.to_json
-			next if o.empty?
-			dynDao.saveObj o[0]
-			o = dynDao.queryObjs(t, "limit 1")
-			newData = o.to_json
-			Logger.error "Failed\nOLD:#{oldData}\nNEW:#{newData}" if oldData != newData
+			save obj, true
 		end
 	end
 end

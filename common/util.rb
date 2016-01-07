@@ -70,7 +70,7 @@ module SpiderUtil
 				end
 				return doc
 			rescue => e
-				Logger.debug "error in parsing web:#{e.message}"
+				Logger.debug "error in parsing [#{url}]:\n#{e.message}"
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
 				sleep 1
@@ -170,7 +170,7 @@ module EncodeUtil
 		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
 	end
 
-	def snake2Camel(snake, capFirst = false)
+	def to_camel(snake, capFirst = false)
 		camel = nil
 		snake.split('_').each do |w|
 			if camel.nil?
@@ -183,7 +183,7 @@ module EncodeUtil
 		camel
 	end
 
-	def camel2Snake(camel)
+	def to_snake(camel)
 		camel.gsub(/::/, '/').
 		gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
 		gsub(/([a-z\d])([A-Z])/,'\1_\2').
@@ -280,7 +280,7 @@ module MQUtil
 		tableName = options[:table]
 		dao = DynamicMysqlDao.new mysql2_enabled: @mysql2_enabled
 		clazz = nil
-		clazz = dao.getClass tableName unless tableName.nil?
+		clazz = dao.get_class tableName unless tableName.nil?
 		debug = options[:debug] == true
 		show_full_body = options[:show_full_body] == true
 		silent = options[:silent] == true

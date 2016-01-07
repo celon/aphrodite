@@ -115,10 +115,10 @@ SQL
 			assert dao.dbclient_query('show processlist') != nil
 
 			# Test writing new record.
-			clazz = dao.getClass 'test_dao'
+			clazz = dao.get_class 'test_dao'
 			data = clazz.new tid:1, price:2.2, amount:3.3, type:1
-			dao.saveObj data
-			all_data = dao.queryObjs 'test_dao'
+			dao.save data
+			all_data = dao.query_objs 'test_dao'
 			assert_equal all_data.size, 1
 			assert_equal all_data[0].tid, 1
 			assert_equal all_data[0].price, 2.2
@@ -129,7 +129,7 @@ SQL
 			# Test updating record.
 			data.price = 4.4
 			data.save true
-			all_data = dao.queryObjs 'test_dao'
+			all_data = dao.query_objs 'test_dao'
 			assert_equal all_data.size, 1
 			assert_equal all_data[0].tid, 1
 			assert_equal all_data[0].price, 4.4
