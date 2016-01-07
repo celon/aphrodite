@@ -116,6 +116,7 @@ SQL
 
 			# Test writing new record.
 			clazz = dao.get_class 'test_dao'
+			assert_equal clazz, APD::TestDao_DB
 			data = clazz.new tid:1, price:2.2, amount:3.3, type:1
 			dao.save data
 			all_data = dao.query_objs 'test_dao'

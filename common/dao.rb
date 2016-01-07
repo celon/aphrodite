@@ -101,34 +101,6 @@ class MysqlDao
 		end
 	end
 
-	# Ret: 0:update, 1:insert, -1:error
-	def insert_update(sqlInsert, sqlUpdate = nil, log = false)
-		while true
-			# Try insert, otherwise update.
-			begin
-				Logger.debug sqlInsert if log == true
-				dbclient_query(sqlInsert)
-				return 1
-			rescue => e
-				if e.message == "MySQL server has gone away"
-					Logger.info(e.message + ", retry.")
-					sleep 1
-					init_dbclient
-					next
-				elsif e.message.start_with? "Duplicate entry "
-					return 0 if sqlUpdate.nil?
-					ret = query(sqlUpdate, log)
-					return -1 if ret == -1
-					return 0
-				else
-					Logger.error "Error in inserting sql:#{sqlInsert}"
-					Logger.error e
-					return -1
-				end
-			end
-		end
-	end
-
 	def close
 		if @activeRecordPool != nil
 			unless @poolAdapter.nil?
@@ -212,7 +184,6 @@ class DynamicMysqlObj
 	def delete(real = false)
 		self.class.mysql_dao.delete_obj self, real
 	end
-	thread_safe :save, :delete
 end
 
 class DynamicMysqlDao < MysqlDao
@@ -261,16 +232,25 @@ class DynamicMysqlDao < MysqlDao
 			throw Exception.new("Unsupported type[#{type}], fitStructure failed.") if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
-		className = DynamicMysqlObj.mysql_tab_to_class_name table
-		if Object.const_defined? className
-			className = "#{className}_DB"
-			if Object.const_defined? className
-				throw Exception.new("Cannot generate class #{className}, const conflict.") if Object.const_defined? className
+		class_name = DynamicMysqlObj.mysql_tab_to_class_name table
+		class_name = "#{class_name}_DB"
+		# Define in root_module
+		root_module = self.class.to_s.split('::').first
+		if root_module.empty?
+			root_module = Object
+		else
+			root_module = Object.const_get root_module
+		end
+		full_class_name = "#{root_module}::#{class_name}"
+
+		if root_module.const_defined? class_name
+			if root_module.const_defined? class_name
+				throw Exception.new("Cannot generate class #{full_class_name}, const conflict.") if root_module.const_defined? class_name
 			else
-				Logger.highlight "Generate class #{className} instead, because const conflict."
+				Logger.highlight "Generate class #{full_class_name} instead, because const conflict."
 			end
 		end
-		Logger.debug "Generate class[#{className}] for #{table}"
+		Logger.debug "Generate class[#{full_class_name}] for #{table}"
 		# Prepare attr_accessor
 		attrCode = ""
 		attrs.keys.each { |a| attrCode << ":#{DynamicMysqlObj.mysql_col_to_attr_name(a)}, " }
@@ -287,7 +267,7 @@ class DynamicMysqlDao < MysqlDao
 		activeDao = self
 		clazz.define_singleton_method :mysql_dao do activeDao; end
 		MYSQL_CLASS_MAP[table] = clazz
-		Object.const_set className, clazz
+		root_module.const_set class_name, clazz
 	end
 	thread_safe :get_class
 
