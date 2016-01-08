@@ -30,9 +30,10 @@ module LockUtil
 						end
 						# Wrap old method with lock.
 						define_method(method) do |*args, &block|
-							method_lock_get(method).lock
-							ret = send old_method_sym, *args, &block
-							method_lock_get(method).unlock
+							ret = nil
+							method_lock_get(method).synchronize do
+								ret = send old_method_sym, *args, &block
+							end
 							ret
 						end
 					end
@@ -45,6 +46,25 @@ end
 #################################################
 # Utility modules below
 #################################################
+module SleepUtil
+	def graphic_sleep(time)
+		maxSleepCount = time
+		sleepCount = 0
+		statusBarLength = 70
+		step = 1
+		step = 0.1 if time < 60
+		while sleepCount < maxSleepCount
+			elapsedLength = statusBarLength * sleepCount / maxSleepCount
+			remainedLength = statusBarLength - elapsedLength
+			statusStr = "|#{'=' * elapsedLength}>#{'.' * remainedLength}"
+			print "\rSleep #{(maxSleepCount - sleepCount).to_i.to_s.ljust(10)}#{statusStr}"
+			sleep step
+			sleepCount += step
+		end
+		print "\r#{' '.ljust('Sleep '.length + 10 + statusBarLength + 2)}\r"
+	end
+end
+
 module SpiderUtil
 	def parse_web(url, encoding = nil, max_ct = -1)
 		doc = nil
@@ -193,8 +213,9 @@ module EncodeUtil
 end
 
 module CacheUtil
+	# Should add a redis_db function here.
 	def redis
-		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:REDIS_DB, password:REDIS_PSWD
+		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD
 	end
 
 	def clear_redis_by_table(table)
@@ -242,6 +263,7 @@ module MQUtil
 		@mq_qlist[route_key] = true
 		q
 	end
+	thread_safe :mq_createq
 
 	def mq_exists?(queue)
 		return true if mq_march_hare?
@@ -263,7 +285,7 @@ module MQUtil
 		end
 		Logger.debug "MQUtil: pushed #{content.size} msg to mq[#{route_key}]" if verbose
 	end
-	thread_safe :mq_createq, :mq_exists?, :mq_push
+	thread_safe :mq_exists?, :mq_push
 
 	def mq_consume(queue, options={})
 		mq_connect

@@ -11,6 +11,10 @@ class MysqlDao
 			@mysql2_enabled = false
 		end
 		@thread_safe = opt[:thread_safe] == true
+		if @thread_safe == true
+			Logger.warn "Dao runs in thread_safe mode, performance will be decreased."
+			self.singleton_class.thread_safe :dbclient_query, :close
+		end
 		init_dbclient
 	end
 
@@ -121,8 +125,6 @@ class MysqlDao
 			Logger.error e
 		end
 	end
-
-	thread_safe :dbclient_query, :close if @thread_safe
 end
 
 # Should be automatically generated from MySQL table schema.
