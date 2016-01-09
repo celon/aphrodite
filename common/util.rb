@@ -15,6 +15,7 @@ module LockUtil
 				methods.each do |method|
 					method = method.to_sym
 					# method -> method_without_threadsafe
+					# puts "#{clazz.name}: #{method} -> #{method}_without_threadsafe".red
 					old_method_sym = "#{method}_without_threadsafe".to_sym
 					alias_method old_method_sym, method
 					clazz.class_eval do
@@ -31,9 +32,11 @@ module LockUtil
 						# Wrap old method with lock.
 						define_method(method) do |*args, &block|
 							ret = nil
+							# puts "#{clazz.name} call thread_safe method #{method}".red
 							method_lock_get(method).synchronize do
 								ret = send old_method_sym, *args, &block
 							end
+							# puts "#{clazz.name} end thread_safe method #{method}".green
 							ret
 						end
 					end
@@ -243,7 +246,6 @@ module MQUtil
 			@mq_march_hare = true
 			mq_conn_int = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		end
-		@mysql2_enabled = opt[:mysql2] == true
 		mq_conn_int.start
 		@mq_qlist = {}
 		@mq_channel = mq_conn_int.create_channel
@@ -299,10 +301,13 @@ module MQUtil
 				end
 			end
 		end
-		tableName = options[:table]
-		dao = DynamicMysqlDao.new mysql2_enabled: @mysql2_enabled
+		db_table = options[:table]
+		dao = options[:dao]
 		clazz = nil
-		clazz = dao.get_class tableName unless tableName.nil?
+		if db_table != nil
+			raise 'mq_consume: dao must provided along to db_table.' if dao.nil?
+			clazz = dao.get_class db_table unless db_table.nil?
+		end
 		debug = options[:debug] == true
 		show_full_body = options[:show_full_body] == true
 		silent = options[:silent] == true
@@ -313,6 +318,7 @@ module MQUtil
 		exitOnEmpty = options[:exitOnEmpty] == true
 		mqc_name = (options[:header] || '')
 	
+		options[:dao] = 'given' unless dao.nil?
 		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
 	
 		unless mq_exists? queue
@@ -347,7 +353,7 @@ module MQUtil
 				# Redirect to err queue.
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				dao.saveObj(clazz.new(json), allow_dup_entry) if success != false && clazz != nil
+				dao.save(clazz.new(json), allow_dup_entry) if success != false && clazz != nil
 				# Debug only onetime.
 				exit! if debug
 				# Send ACK.
@@ -370,11 +376,6 @@ module MQUtil
 					consumer.cancel
 				end
 			end
-		end
-		begin
-			Logger.debug "Closing connection."
-			dao.close
-		rescue
 		end
 		processedCount
 	end

@@ -3,6 +3,8 @@ class MysqlDao
 	include CacheUtil
 	include LockUtil
 
+	attr_reader :thread_safe
+
 	def initialize(opt={})
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
