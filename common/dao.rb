@@ -274,30 +274,36 @@ class DynamicMysqlDao < MysqlDao
 	thread_safe :get_class
 
 	def parse_mysql_val(string, type)
-		return nil if string.nil?
-		return string.force_encoding("UTF-8") if type.empty?
-		val = string
-		# Extract from package.
-		type.each do |t|
- 			break if val.nil?
-			method = MYSQL_TYPE_MAP[t.to_sym]
-			throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
-			method = method.to_sym
-			case method
-			when :to_datetime
-				val = DateTime.parse(val) if method == :to_datetime
-			when :base64
-				val = decode64 val
-			when :json
-				val = JSON.parse val.gsub("\n", "\\n").gsub("\r", "\\r")
-			when :to_s
-			else
-				val = val.send method
+		begin
+			return nil if string.nil?
+			return string.force_encoding("UTF-8") if type.empty?
+			val = string
+			# Extract from package.
+			type.each do |t|
+	 			break if val.nil?
+				method = MYSQL_TYPE_MAP[t.to_sym]
+				throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
+				method = method.to_sym
+				case method
+				when :to_datetime
+					val = DateTime.parse(val) if method == :to_datetime
+				when :base64
+					val = decode64 val
+				when :json
+					val = JSON.parse val.gsub("\n", "\\n").gsub("\r", "\\r")
+				when :to_s
+				else
+					val = val.send method
+				end
 			end
+			return nil if val.nil?
+			val = val.force_encoding("UTF-8") if val.is_a? String
+			return val
+		rescue => e
+			Logger.error "Error in parse_mysql_val:[#{string}] for type:[#{type}]"
+			Logger.error e
+			raise e
 		end
-		return nil if val.nil?
-		val = val.force_encoding("UTF-8") if val.is_a? String
-		val
 	end
 
 	def gen_mysql_val(val, type)
