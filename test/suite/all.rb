@@ -61,13 +61,14 @@ class TestUtil < TestBoard
 	end
 
 	def test_mq_util
+		@dao = APD::DynamicMysqlDao.new mysql2:false
 		[false, true].each do |mq_mode|
 		[false, true].each do |thread_mode|
 		[1, 10, 100].each do |prefetch_num|
 			@instance.mq_connect march_hare:mq_mode
 			@instance.mq_createq 'test'
 			# Clear queue first.
-			@instance.mq_consume('test', exitOnEmpty:true, silent:true)
+			@instance.mq_consume('test', dao:@dao, exitOnEmpty:true, silent:true)
 			data = { 'x' => 'y' }
 			total_ct = 100
 			total_ct.times do
@@ -75,7 +76,7 @@ class TestUtil < TestBoard
 			end
 			ct = 0
 			threads = []
-			t1 = @instance.mq_consume('test', prefetch_num:prefetch_num, thread:thread_mode, exitOnEmpty:true, silent:true) do |d, dao|
+			t1 = @instance.mq_consume('test', dao:@dao, prefetch_num:prefetch_num, thread:thread_mode, exitOnEmpty:true, silent:true) do |d, dao|
 				ct += 1
 				assert_equal d, data
 			end
