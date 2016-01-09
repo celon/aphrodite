@@ -25,6 +25,9 @@ class TestUtil < TestBoard
 			include APD::LZString
 			include APD::CacheUtil
 			include APD::MQUtil
+			def redis_db
+				0
+			end
 		end
 		@instance = @target_class.new
 	end
@@ -43,10 +46,10 @@ class TestUtil < TestBoard
 	end
 
 	def test_encode_util
-		assert_equal 'FlyingCatIsHere', (@instance.snake2Camel 'flying_cat_is_here', true)
-		assert_equal 'woofingDog', (@instance.snake2Camel 'woofing_dog', false)
-		assert_equal 'flying_cat_is_here', (@instance.camel2Snake 'FlyingCatIsHere')
-		assert_equal 'woofing_dog', (@instance.camel2Snake 'woofingDog')
+		assert_equal 'FlyingCatIsHere', (@instance.to_camel 'flying_cat_is_here', true)
+		assert_equal 'woofingDog', (@instance.to_camel 'woofing_dog', false)
+		assert_equal 'flying_cat_is_here', (@instance.to_snake 'FlyingCatIsHere')
+		assert_equal 'woofing_dog', (@instance.to_snake 'woofingDog')
 		str = 'abcdefg'
 		assert_equal str, @instance.decode64(@instance.encode64(str))
 		assert_equal 'x', @instance.lz_decompressFromBase64('B5A=')
