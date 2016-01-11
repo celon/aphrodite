@@ -49,6 +49,46 @@ end
 #################################################
 # Utility modules below
 #################################################
+module EncodeUtil
+	def encode64(data)
+		data.nil? ? Base64.encode64("") : Base64.encode64(data)
+	end
+
+	def decode64(data)
+		return nil if data.nil? || data.empty?
+		Base64.decode64(data).force_encoding("UTF-8")
+	end
+
+	def hash_str(data)
+		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
+	end
+
+	def md5(data)
+		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
+	end
+
+	def to_camel(snake, capFirst = false)
+		camel = nil
+		snake.split('_').each do |w|
+			if camel.nil?
+				camel = w.capitalize if capFirst
+				camel = w if !capFirst
+			else
+				camel << w.capitalize
+			end
+		end
+		camel
+	end
+
+	def to_snake(camel)
+		camel.gsub(/::/, '/').
+		gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
+		gsub(/([a-z\d])([A-Z])/,'\1_\2').
+		tr("-", "_").
+		downcase
+	end
+end
+
 module SleepUtil
 	def graphic_sleep(time)
 		maxSleepCount = time
@@ -69,6 +109,8 @@ module SleepUtil
 end
 
 module SpiderUtil
+	include EncodeUtil
+
 	def parse_web(url, encoding = nil, max_ct = -1)
 		doc = nil
 		ct = 0
@@ -101,7 +143,9 @@ module SpiderUtil
 		end
 	end
 	
-	def download(url, filename, max_ct = -1)
+	def curl_native(url, opt={})
+		filename = opt[:file]
+		max_ct = opt[:retry] || -1
 		doc = nil
 		ct = 0
 		while true
@@ -118,21 +162,48 @@ module SpiderUtil
 			end
 		end
 	end
-	
-	def curl_javaver(url)
-		jarpath = "#{APD_COMMON_PATH}/res/curl.jar"
-		tmpFile = "#{Time.now.to_i}_#{rand(10000)}.html"
-		cmd = "java -jar #{jarpath} '#{url}' #{tmpFile}"
+
+	def curl(url, opt={})
+		file = opt[:file]
+		tmp_file_use = false
+		if file.nil?
+			file = "curl_#{hash_str(url)}.html"
+			tmp_file_use = true
+		end
+		cmd = "curl --silent --output '#{file}'"
+		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
+		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
+		cmd += " '#{url}'"
 		ret = system(cmd)
-		Logger.debug("#{cmd} --> #{ret}")
-		result = ""
-		if File.exist?(tmpFile)
-			result = File.open(tmpFile, "rb").read
-			File.delete(tmpFile)
+		Logger.debug("#{cmd} --> #{ret}") if opt[:verbose] == true
+		if File.exist?(file)
+			result = File.open(file, "rb").read
+			File.delete(file) if tmp_file_use
 		else
 			result = nil
 		end
-		return result
+		result
+	end
+	
+	def curl_javaver(url, opt={})
+		file = opt[:file]
+		tmp_file_use = false
+		if file.nil?
+			file = "curl_#{hash_str(url)}.html"
+			tmp_file_use = true
+		end
+		jarpath = "#{APD_COMMON_PATH}/res/curl.jar"
+		cmd = "java -jar #{jarpath} '#{url}' #{file}"
+		ret = system(cmd)
+		Logger.debug("#{cmd} --> #{ret}")
+		result = ""
+		if File.exist?(file)
+			result = File.open(file, "rb").read
+			File.delete(file) if tmp_file_use
+		else
+			result = nil
+		end
+		result
 	end
 end
 
@@ -172,46 +243,6 @@ module LZString
 
 	def lz_decompressFromBase64(string)
 		lz_context.call("LZString.decompressFromBase64", string)
-	end
-end
-	
-module EncodeUtil
-	def encode64(data)
-		data.nil? ? Base64.encode64("") : Base64.encode64(data)
-	end
-
-	def decode64(data)
-		return nil if data.nil? || data.empty?
-		Base64.decode64(data).force_encoding("UTF-8")
-	end
-
-	def hash_str(data)
-		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
-	end
-
-	def md5(data)
-		data.nil? ? Digest::MD5.hexdigest("") : Digest::MD5.hexdigest(data)
-	end
-
-	def to_camel(snake, capFirst = false)
-		camel = nil
-		snake.split('_').each do |w|
-			if camel.nil?
-				camel = w.capitalize if capFirst
-				camel = w if !capFirst
-			else
-				camel << w.capitalize
-			end
-		end
-		camel
-	end
-
-	def to_snake(camel)
-		camel.gsub(/::/, '/').
-		gsub(/([A-Z]+)([A-Z][a-z])/,'\1_\2').
-		gsub(/([a-z\d])([A-Z])/,'\1_\2').
-		tr("-", "_").
-		downcase
 	end
 end
 
