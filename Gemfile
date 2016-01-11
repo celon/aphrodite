@@ -5,6 +5,7 @@ gem 'nokogiri'
 gem 'logger'
 gem 'colorize'
 gem 'execjs'
+gem 'connection_pool'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.16.0"
