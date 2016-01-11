@@ -313,6 +313,7 @@ module MQUtil
 		silent = options[:silent] == true
 		noack_on_err = options[:noack_on_err] == true
 		noerr = options[:noerr] == true
+		format = options[:format]
 		prefetch_num = options[:prefetch_num]
 		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
@@ -327,7 +328,7 @@ module MQUtil
 		end
 		@mq_channel.basic_qos(prefetch_num) unless prefetch_num.nil?
 		q = mq_createq queue
-		err_q = mq_createq "#{queue}_err"
+		err_q = mq_createq "#{queue}_err" unless noerr
 		remain_ct = q.message_count
 		processedCount = 0
 		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]"
@@ -346,14 +347,22 @@ module MQUtil
 			processedCount += 1
 			success = true
 			begin
-				Logger.info "#{mqc_name}[#{q.name}:#{processedCount}/#{remain_ct}]: #{show_full_body ? body : body[0..40]}" unless silent
-				json = JSON.parse body
+				Logger.info "MQC: #{mqc_name}[#{q.name}:#{processedCount}/#{remain_ct}]: #{show_full_body ? body : body[0..40]}" unless silent
+				data = nil
+				format = :json if format.nil?
+				if format == :json
+					data = JSON.parse body
+				elsif format == :raw
+					data = body
+				else
+					raise "Unknown format: #{format}"
+				end
 				# Process json in yield, save if needed.
-				success = yield(json, dao) if block_given?
+				success = yield(data, dao) if block_given?
 				# Redirect to err queue.
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				dao.save(clazz.new(json), allow_dup_entry) if success != false && clazz != nil
+				dao.save(clazz.new(data), allow_dup_entry) if format == :json && success != false && clazz != nil
 				# Debug only onetime.
 				exit! if debug
 				# Send ACK.
@@ -366,7 +375,7 @@ module MQUtil
 				Logger.highlight "--> [#{q.name}]: #{body}"
 				Logger.error e
 				# Redirect to err queue only if exception occurred.
-				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name)
+				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) unless noerr
 				exit!
 			end
 			if processedCount == remain_ct and exitOnEmpty
