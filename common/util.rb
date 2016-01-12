@@ -15,9 +15,13 @@ module LockUtil
 				methods.each do |method|
 					method = method.to_sym
 					# method -> method_without_threadsafe
-					# puts "#{clazz.name}: #{method} -> #{method}_without_threadsafe".red
 					old_method_sym = "#{method}_without_threadsafe".to_sym
-					alias_method old_method_sym, method
+					if clazz.method_defined? old_method_sym
+# 						puts "#{clazz}: #{old_method_sym} alread exists, skip wrap".red
+					else
+						alias_method old_method_sym, method
+# 						puts "#{clazz}: #{method} -> #{method}_without_threadsafe".red
+					end
 					clazz.class_eval do
 						# add instance methods: __get_lock4_(method_name)
 						# All target methods share one mutex.
@@ -32,11 +36,12 @@ module LockUtil
 						# Wrap old method with lock.
 						define_method(method) do |*args, &block|
 							ret = nil
-							# puts "#{clazz.name} call thread_safe method #{method}".red
+# 							puts "#{clazz}\##{self.object_id} call thread_safe method #{method}".red
 							method_lock_get(method).synchronize do
+# 								puts "#{clazz}\##{self.object_id} call internal method #{old_method_sym}".blue
 								ret = send old_method_sym, *args, &block
 							end
-							# puts "#{clazz.name} end thread_safe method #{method}".green
+# 							puts "#{clazz}\##{self.object_id} end thread_safe method #{method}".green
 							ret
 						end
 					end

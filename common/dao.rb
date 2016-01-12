@@ -1,7 +1,6 @@
 class MysqlDao
 	include EncodeUtil
 	include CacheUtil
-	include LockUtil
 
 	attr_reader :thread_safe
 
@@ -15,7 +14,11 @@ class MysqlDao
 		@thread_safe = opt[:thread_safe] == true
 		if @thread_safe == true
 			Logger.warn "Dao runs in thread_safe mode, performance will be decreased."
-			self.singleton_class.thread_safe :dbclient_query, :close
+			self.singleton_class.class_eval do
+				include LockUtil
+				thread_safe :dbclient_query, :close
+				thread_safe :init_dbclient
+			end
 		end
 		init_dbclient
 	end
@@ -56,7 +59,6 @@ class MysqlDao
 		end
 		@dbclient = dbclient
 	end
-	thread_safe :init_dbclient
 
 	def list_tables
 		init_dbclient if @dbclient.nil?
