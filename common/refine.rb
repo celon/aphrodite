@@ -23,6 +23,23 @@ if defined? using == 'method'
 			def strftime(format='%FT%T%:z')
 				DateTime.parse(self).strftime format
 			end
+
+			def extract_useragent
+				res = ''
+				# Platform
+				res << 'Android ' if include? 'Android '
+				res << 'iPad ' if include? 'iPad; '
+				res << 'iPhone ' if include? 'iPhone; '
+				res << 'Win' if include? 'Windows NT '
+				res << 'Mac' if include? 'Macintosh'
+				res << 'Mac' if include? 'Darwin'
+				# Browser
+				{'MicroMessenger'=>'微信', 'QQ'=>'QQ', 'Firefox'=>'firefox', 'NetType'=>'网络'}.each do |attr, display_name|
+					res << display_name << (split(attr)[1].split(' ')[0]) << ' ' if include? attr
+				end
+				return self if res.empty?
+				res
+			end
 		end
 	end
 else
@@ -58,6 +75,23 @@ else
 	class ::String
 		def strftime(format='%FT%T%:z')
 			DateTime.parse(self).strftime format
+		end
+
+		def extract_useragent
+			res = ''
+			# Platform
+			res << 'Android ' if include? 'Android '
+			res << 'iPad ' if include? 'iPad; '
+			res << 'iPhone ' if include? 'iPhone; '
+			res << 'Win' if include? 'Windows NT '
+			res << 'Mac' if include? 'Macintosh'
+			res << 'Mac' if include? 'Darwin'
+			# Browser
+			{'MicroMessenger'=>'微信', 'QQ'=>'QQ', 'Firefox'=>'firefox', 'NetType'=>'网络'}.each do |attr, display_name|
+				res << display_name << (split(attr)[1].split(' ')[0]) << ' ' if include? attr
+			end
+			return self if res.empty?
+			res
 		end
 	end
 end

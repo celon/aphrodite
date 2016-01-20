@@ -56,7 +56,7 @@ end
 #################################################
 module EncodeUtil
 	def encode64(data)
-		data.nil? ? Base64.encode64("") : Base64.encode64(data)
+		Base64.encode64(data.nil? ? '':data).strip.gsub("\n", '')
 	end
 
 	def decode64(data)
