@@ -8,6 +8,10 @@ if defined? using == 'method'
 			def to_yyyymmdd
 				self.strftime "%Y%m%d"
 			end
+
+			def to_i
+				self.strftime('%Q').to_i
+			end
 		end
 	
 		refine ::Fixnum do
@@ -60,6 +64,10 @@ else
 
 		def to_yyyymmdd
 			self.strftime "%Y%m%d"
+		end
+
+		def to_i
+			self.strftime('%Q').to_i
 		end
 	end
 
