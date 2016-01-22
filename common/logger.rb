@@ -6,45 +6,45 @@ class Logger
 	
 		def debug(str)
 			str = getExceptionStackInfo(str) if str.is_a?(Exception)
-			log_int str.to_s
+			log_int str
 		end
 	
 		def log(str, additional_stack=0)
 			str = getExceptionStackInfo(str) if str.is_a?(Exception)
-			log_int str.to_s, additional_stack
+			log_int str, additional_stack
 		end
 	
 		def info(str)
 			str = getExceptionStackInfo(str) if str.is_a?(Exception)
-			log_int str.to_s.blue
+			log_int str, nil, color: :blue
 		end
 	
 		def highlight(str)
 			str = getExceptionStackInfo(str) if str.is_a?(Exception)
-			log_int str.to_s.red
+			log_int str, nil, color: :red
 		end
 	
 		def warn(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str).light_magenta
+				log_int getExceptionStackInfo(str), nil, color: :light_magenta
 			else
-				log_int str.to_s.light_magenta
+				log_int str, nil, color: :light_magenta
 			end
 		end
 	
 		def error(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str).light_red
+				log_int getExceptionStackInfo(str), nil, color: :light_red
 			else
-				log_int str.to_s.light_red + "\n" +  getStackInfo(caller).light_red
+				log_int (str.to_s + "\n" +  getStackInfo(caller)), nil, color: :light_red
 			end
 		end
 	
 		def fatal(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str).red
+				log_int getExceptionStackInfo(str), nil, color: :red
 			else
-				log_int str.to_s.red + "\n" +  getStackInfo(caller).red
+				log_int (str.to_s + "\n" +  getStackInfo(caller)), nil, color: :red
 			end
 		end
 	
@@ -57,12 +57,20 @@ class Logger
 		end
 	
 		@@maxHeadLen = 30
-		def log_int(o, additional_stack=0)
+		def log_int(o, additional_stack=0, opt={})
+			additional_stack ||= 0
+			o = o.to_s
 			head = caller(2 + additional_stack).first.split(":in")[0]
 			head = head.split('/').last
 			head = "#{Time.now.strftime("%m/%d-%H:%M:%S.%L")} [#{head}]:"
 			@@maxHeadLen = head.size if head.size > @@maxHeadLen
-			print "\r#{head.ljust(@@maxHeadLen)}#{o}\n"
+			msg = "\r#{head.ljust(@@maxHeadLen)}#{o}\n"
+			begin
+				msg = msg.send(opt[:color]) unless opt[:color].nil?
+			rescue => e
+				msg << "\nBTX::Logger: Failed to set color #{opt[:color]}, error:#{e.message}\n"
+			end
+			print msg
 		end
 	end
 end
