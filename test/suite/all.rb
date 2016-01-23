@@ -112,6 +112,7 @@ class TestDao < TestBoard
 				`price` double(16,8) NOT NULL,
 				`amount` double(16,8) NOT NULL,
 				`type` tinyint(2) NOT NULL,
+				`bindata` longblob DEFAULT NULL COMMENT 'lazyload',
 				PRIMARY KEY (`tid`)
 			) ENGINE=`InnoDB` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ROW_FORMAT=COMPACT CHECKSUM=0 DELAY_KEY_WRITE=0;
 SQL
@@ -123,14 +124,22 @@ SQL
 			# Test writing new record.
 			clazz = dao.get_class 'test_dao'
 			assert_equal clazz, APD::TestDao_DB
-			data = clazz.new tid:1, price:2.2, amount:3.3, type:1
+			data = clazz.new tid:1, price:2.2, amount:3.3, type:1, bindata:'this is bin data.'
 			dao.save data
+			# Read from db.
 			all_data = dao.query_objs 'test_dao'
 			assert_equal all_data.size, 1
 			assert_equal all_data[0].tid, 1
 			assert_equal all_data[0].price, 2.2
 			assert_equal all_data[0].amount, 3.3
 			assert_equal all_data[0].type, 1
+			# Lazyload attrs will be nil if set no_load.
+			assert_equal all_data[0].bindata(no_load:true), nil
+			# Save obj with lazy_attr not loaded yet, lazy attr should not be overwritten.
+			all_data[0].save true
+			all_data = dao.query_objs 'test_dao'
+			# Lazyload attrs will be db value in normal invokation.
+			assert_equal all_data[0].bindata, 'this is bin data.'
 			# Pack and parse.
 			data = clazz.new data.to_hash
 			# Test updating record.

@@ -229,17 +229,21 @@ class DynamicMysqlDao < MysqlDao
 		Logger.debug "Detecting table[#{table}] structure."
 		selectSql = "SELECT "
 		attrs = {}
-		priAttrs = []
+		lazy_attrs, pri_attrs = {}, []
 		query("SHOW FULL COLUMNS FROM #{table}").each do |name, type, c, n, key, d, e, p, comment|
 			type = type.split('(')[0]
 			selectSql << "#{name}, "
 			attrs[name] = [type]
 			unless comment.nil? or comment.empty?
 				comment.split(',')[0].split('|').each do |t|
-					attrs[name] << t.strip unless t.strip.empty?
+					t = t.strip
+					next if t.empty?
+					# Lazyload only works for non-primary keys.
+					next (lazy_attrs[name] = true) if t == 'lazyload' && key != 'PRI'
+					attrs[name] << t
 				end
 			end
-			priAttrs << key if key == 'PRI'
+			pri_attrs << name if key == 'PRI'
 			# Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}"
 			raise "Unsupported type[#{type}], fitStructure failed." if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
@@ -263,21 +267,54 @@ class DynamicMysqlDao < MysqlDao
 			end
 		end
 		Logger.debug "Generate class[#{full_class_name}] for #{table}"
-		# Prepare attr_accessor
-		attrCode = ""
-		attrs.keys.each { |a| attrCode << ":#{DynamicMysqlObj.mysql_col_to_attr_name(a)}, " }
-		attrCode = "attr_accessor #{attrCode}" unless attrCode.empty?
-		attrCode.strip!
-		attrCode = attrCode[0..-2] if attrCode.end_with? ','
+
+		current_dao = self
 		# Dynamic class generating.
-		clazz = Class.new(DynamicMysqlObj) do
-			eval attrCode
+		clazz = Class.new(DynamicMysqlObj)
+		clazz.instance_eval { attr_accessor :__init_from_db }
+		# Set attr_accessor for lazy and non-lazy attrs.
+		attrs.each do |a, type|
+			clazz.instance_eval { attr_accessor a.to_sym }
+			next if lazy_attrs[a] != true
+			# Lazy load for lazy_attrs
+			clazz.instance_eval do
+				attr_accessor "__#{a}_loaded".to_sym
+				# Getter: only load from db for first reading, and obj must be initialized from db.
+				define_method(a.to_sym) do |*args|
+					opt = args[0] || {}
+					if opt[:no_load] == true || send(:__init_from_db) != true || send("__#{a}_loaded".to_sym) == true
+						# puts "read lazyload #{a} directly."
+						instance_variable_get "@#{a}".to_sym
+					else
+						# puts "read lazyload #{a} from db."
+						load_sql = "select #{a} from #{table} where "
+						pri_attrs.each do |pk|
+							load_sql << "#{pk}=#{current_dao.gen_mysql_val(send(pk.to_sym), attrs[pk])}"
+						end
+						current_dao.query(load_sql).each do |value|
+							value = current_dao.parse_mysql_val(value, type)
+							instance_variable_set "@#{a}".to_sym, value
+							break
+						end
+						# instance_variable_set "@#{a}".to_sym, value
+						send("__#{a}_loaded=".to_sym, true)
+						instance_variable_get "@#{a}".to_sym
+					end
+				end
+				# Setter
+				define_method("#{a}=".to_sym) do |value|
+					# puts "set lazyload #{a} #{value.inspect}"
+					send("__#{a}_loaded=".to_sym, true)
+					instance_variable_set "@#{a}".to_sym, value
+				end
+			end
 		end
-		clazz.define_singleton_method :mysql_pri_attrs do priAttrs; end
+
+		clazz.define_singleton_method :mysql_pri_attrs do pri_attrs; end
+		clazz.define_singleton_method :mysql_lazy_attrs do lazy_attrs; end
 		clazz.define_singleton_method :mysql_attrs do attrs; end
 		clazz.define_singleton_method :mysql_table do table; end
-		activeDao = self
-		clazz.define_singleton_method :mysql_dao do activeDao; end
+		clazz.define_singleton_method :mysql_dao do current_dao; end
 		MYSQL_CLASS_MAP[table] = clazz
 		root_module.const_set class_name, clazz
 	end
@@ -302,6 +339,7 @@ class DynamicMysqlDao < MysqlDao
 				when :json
 					val = JSON.parse val.gsub("\n", "\\n").gsub("\r", "\\r")
 				when :bin
+					val = val[0] if val.size > 0
 				when :to_s
 				else
 					val = val.send method
@@ -350,16 +388,23 @@ class DynamicMysqlDao < MysqlDao
 		clazz = get_class table
 		raise "Cannot get class from table:#{table}" unless clazz.is_a? Class
 		sql = "select "
-		clazz.mysql_attrs.each { |name, type| sql << "#{name}, " }
+		all_attrs  = clazz.mysql_attrs
+		lazy_attrs = clazz.mysql_lazy_attrs
+		selected_attrs = []
+		all_attrs.each do |name, type|
+			next if lazy_attrs[name] == true
+			selected_attrs.push name
+			sql << "#{name}, "
+		end
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
 		ret = []
 		query(sql).each do |row|
 			obj = clazz.new
-			ct = 0
-			clazz.mysql_attrs.each do |name, type|
-				val = parse_mysql_val row[ct], type
+			obj.__init_from_db = true
+			selected_attrs.each_with_index do |name, index|
+				type = all_attrs[name]
+				val = parse_mysql_val row[index], type
 				obj.mysql_attr_set name, val
-				ct += 1
 			end
 			ret << obj
 		end
