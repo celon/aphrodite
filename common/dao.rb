@@ -210,10 +210,16 @@ class DynamicMysqlDao < MysqlDao
 		:timestamp => :to_datetime,
 		:char => :to_s,
 		:varchar => :to_s,
+		:tinytext => :to_s,
 		:text => :to_s,
 		:mediumtext => :to_s,
+		:longtext => :to_s,
 		:base64 => :base64,
-		:json => :json
+		:json => :json,
+		:tinyblob	=> :bin,
+		:blob	=> :bin,
+		:mediumblob	=> :bin,
+		:longblob	=> :bin
 	}
 
 	MYSQL_CLASS_MAP = {}
@@ -295,6 +301,7 @@ class DynamicMysqlDao < MysqlDao
 					val = decode64 val
 				when :json
 					val = JSON.parse val.gsub("\n", "\\n").gsub("\r", "\\r")
+				when :bin
 				when :to_s
 				else
 					val = val.send method
@@ -315,6 +322,7 @@ class DynamicMysqlDao < MysqlDao
 		return "'#{val}'" if type.empty?
 		string = val
 		# Pack in reverse order.
+		hex_pack = false
 		type.reverse.each do |t|
 			method = MYSQL_TYPE_MAP[t.to_sym]
 			throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
@@ -326,12 +334,15 @@ class DynamicMysqlDao < MysqlDao
 				val = encode64 val
 			when :json
 				val = val.to_json
+			when :bin
+				val = "UNHEX('#{val.to_s.b.unpack('H*')[0]}')"
+				hex_pack = true
 			when :to_s
 			else
 				val = val.to_s
 			end
 		end
-		val = "'#{val}'" if val.is_a? String
+		val = "'#{val}'" if val.is_a?(String) && !hex_pack
 		val
 	end
 
