@@ -420,9 +420,11 @@ class DynamicMysqlDao < MysqlDao
 		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
 		setSql = ""
+		lazy_attrs = obj.class.mysql_lazy_attrs
 		obj.class.mysql_attrs.each do |col, type|
 			val = obj.mysql_attr_get col
-			next if val.nil?
+			# Do not overwrite unload lazy attrs.
+			next if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
 			setSql << "#{col}=#{gen_mysql_val(val, type)}, "
 		end
 		setSql = setSql[0..-3]

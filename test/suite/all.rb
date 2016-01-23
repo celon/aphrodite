@@ -140,6 +140,17 @@ SQL
 			all_data = dao.query_objs 'test_dao'
 			# Lazyload attrs will be db value in normal invokation.
 			assert_equal all_data[0].bindata, 'this is bin data.'
+			# Overwrite attrs with NULL, check coinsistence.
+			all_data[0].bindata = nil
+			all_data[0].save true
+			all_data = dao.query_objs 'test_dao'
+			assert_equal all_data[0].bindata, nil
+			# Overwrite attrs, check coinsistence.
+			all_data[0].bindata = "Re-written data"
+			all_data[0].save true
+			all_data = dao.query_objs 'test_dao'
+			assert_equal all_data[0].bindata, "Re-written data"
+
 			# Pack and parse.
 			data = clazz.new data.to_hash
 			# Test updating record.
