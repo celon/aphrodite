@@ -2,7 +2,9 @@ require_relative '../conf/config'
 
 gem 'minitest'
 require 'minitest/autorun'
+require 'openssl'
 
+OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
 class TestBoard < Minitest::Test
 	def setup
 		require_relative '../../common/bootstrap'
@@ -34,7 +36,7 @@ class TestUtil < TestBoard
 
 	def test_spider_util
 		@instance.parse_web 'https://www.yahoo.com'
-		@instance.download 'https://www.gnu.org/graphics/heckert_gnu.small.png', "#{@tmp_dir}/gnu.png"
+		@instance.curl 'https://www.gnu.org/graphics/heckert_gnu.small.png', file:"#{@tmp_dir}/gnu.png"
 		begin
 			@instance.download 'https://xxxxxxxx/xxx.png', "#{@tmp_dir}/err.png", 2
 			assert false
