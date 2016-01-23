@@ -241,7 +241,7 @@ class DynamicMysqlDao < MysqlDao
 			end
 			priAttrs << key if key == 'PRI'
 			# Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}"
-			throw Exception.new("Unsupported type[#{type}], fitStructure failed.") if MYSQL_TYPE_MAP[type.to_sym].nil?
+			raise "Unsupported type[#{type}], fitStructure failed." if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
 		class_name = DynamicMysqlObj.mysql_tab_to_class_name table
@@ -257,7 +257,7 @@ class DynamicMysqlDao < MysqlDao
 
 		if root_module.const_defined? class_name
 			if root_module.const_defined? class_name
-				throw Exception.new("Cannot generate class #{full_class_name}, const conflict.") if root_module.const_defined? class_name
+				raise "Cannot generate class #{full_class_name}, const conflict." if root_module.const_defined? class_name
 			else
 				Logger.highlight "Generate class #{full_class_name} instead, because const conflict."
 			end
@@ -292,7 +292,7 @@ class DynamicMysqlDao < MysqlDao
 			type.each do |t|
 	 			break if val.nil?
 				method = MYSQL_TYPE_MAP[t.to_sym]
-				throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
+				raise "Unsupport mysql type:#{type}" if method.nil?
 				method = method.to_sym
 				case method
 				when :to_datetime
@@ -325,7 +325,7 @@ class DynamicMysqlDao < MysqlDao
 		hex_pack = false
 		type.reverse.each do |t|
 			method = MYSQL_TYPE_MAP[t.to_sym]
-			throw Exception.new("Unsupport mysql type:#{type}") if method.nil?
+			raise "Unsupport mysql type:#{type}" if method.nil?
 			method = method.to_sym
 			case method
 			when :to_datetime
@@ -348,7 +348,7 @@ class DynamicMysqlDao < MysqlDao
 
 	def query_objs(table, whereClause = "")
 		clazz = get_class table
-		throw Exception.new("Cannot get class from table:#{table}") unless clazz.is_a? Class
+		raise "Cannot get class from table:#{table}" unless clazz.is_a? Class
 		sql = "select "
 		clazz.mysql_attrs.each { |name, type| sql << "#{name}, " }
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
@@ -367,12 +367,12 @@ class DynamicMysqlDao < MysqlDao
 	end
 
 	def save_all(array, update = false)
-		throw Exception.new("Only receive obj arrays.") unless array.is_a? Array
+		raise "Only receive obj arrays." unless array.is_a? Array
 		array.each { |o| save o, update }
 	end
 
 	def save(obj, update = false)
-		throw Exception.new("Only DynamicMysqlObj could be operated.") unless obj.is_a? DynamicMysqlObj
+		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
 		setSql = ""
 		obj.class.mysql_attrs.each do |col, type|
@@ -387,12 +387,12 @@ class DynamicMysqlDao < MysqlDao
 	end
 
 	def delete_all(array, real = false)
-		throw Exception.new("Only receive obj arrays.") unless array.is_a? Array
+		raise "Only receive obj arrays." unless array.is_a? Array
 		array.each { |o| delete_obj o, real }
 	end
 
 	def delete_obj(obj, real = false)
-		throw Exception.new("Only DynamicMysqlObj could be operated.") unless obj.is_a? DynamicMysqlObj
+		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
 		if real
 			sql = "DELETE FROM #{obj.class.mysql_table} WHERE "
 			attrSql = ""
@@ -405,7 +405,7 @@ class DynamicMysqlDao < MysqlDao
 			sql << attrSql
 			query sql
 		else
-			throw Exception.new("#{obj.class} do not contain column[deleted]") unless obj.respond_to? :deleted=
+			raise "#{obj.class} do not contain column[deleted]" unless obj.respond_to? :deleted=
 			return Logger.warn "obj is already marked as deleted." if obj.deleted
 			obj.deleted = true
 			save obj, true
