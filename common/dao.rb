@@ -229,8 +229,13 @@ class DynamicMysqlDao < MysqlDao
 		Logger.debug "Detecting table[#{table}] structure."
 		selectSql = "SELECT "
 		attrs = {}
+		attrs_info = {}
 		lazy_attrs, pri_attrs = {}, []
-		query("SHOW FULL COLUMNS FROM #{table}").each do |name, type, c, n, key, d, e, p, comment|
+		query("SHOW FULL COLUMNS FROM #{table}").each do |name, type, c, allow_null, key, default_value, e, p, comment|
+			attrs_info[name] = {
+				:allow_null	=> (allow_null == 'YES'),
+				:default_value	=>	default_value
+			}
 			type = type.split('(')[0]
 			selectSql << "#{name}, "
 			attrs[name] = [type]
@@ -313,6 +318,7 @@ class DynamicMysqlDao < MysqlDao
 		clazz.define_singleton_method :mysql_pri_attrs do pri_attrs; end
 		clazz.define_singleton_method :mysql_lazy_attrs do lazy_attrs; end
 		clazz.define_singleton_method :mysql_attrs do attrs; end
+		clazz.define_singleton_method :mysql_attrs_info do attrs_info; end
 		clazz.define_singleton_method :mysql_table do table; end
 		clazz.define_singleton_method :mysql_dao do current_dao; end
 		MYSQL_CLASS_MAP[table] = clazz
@@ -421,11 +427,15 @@ class DynamicMysqlDao < MysqlDao
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
 		setSql = ""
 		lazy_attrs = obj.class.mysql_lazy_attrs
+		mysql_attrs_info = obj.class.mysql_attrs_info
 		obj.class.mysql_attrs.each do |col, type|
 			val = obj.mysql_attr_get col
 			# Do not overwrite unload lazy attrs.
 			next if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
-			setSql << "#{col}=#{gen_mysql_val(val, type)}, "
+			value = gen_mysql_val(val, type)
+			# Do not use NULL to overwrite attr that has default value.
+			next if value == 'NULL' && mysql_attrs_info[col][:default_value] != nil
+			setSql << "#{col}=#{value}, "
 		end
 		setSql = setSql[0..-3]
 		sql << setSql
