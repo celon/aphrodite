@@ -279,7 +279,8 @@ class DynamicMysqlDao < MysqlDao
 		clazz.instance_eval { attr_accessor :__init_from_db }
 		# Set attr_accessor for lazy and non-lazy attrs.
 		attrs.each do |a, type|
-			clazz.instance_eval { attr_accessor a.to_sym }
+			# puts "clazz.instance_eval { attr_accessor #{to_snake(a).to_sym} }"
+			clazz.instance_eval { attr_accessor to_snake(a).to_sym }
 			next if lazy_attrs[a] != true
 			# Lazy load for lazy_attrs
 			clazz.instance_eval do
