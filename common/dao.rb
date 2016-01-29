@@ -136,6 +136,9 @@ class DynamicMysqlObj
 	extend EncodeUtil
 	include LockUtil
 
+	# Record any un-read columns.
+	attr_accessor :unload_columns
+
 	def mysql_attr_set(mysqlCol, val)
 		send "#{self.class.mysql_col_to_attr_name(mysqlCol)}=", val
 	end
@@ -292,11 +295,11 @@ class DynamicMysqlDao < MysqlDao
 						# puts "read lazyload #{a} directly."
 						instance_variable_get "@#{a}".to_sym
 					else
-						# puts "read lazyload #{a} from db."
 						load_sql = "select #{a} from #{table} where "
 						pri_attrs.each do |pk|
 							load_sql << "#{pk}=#{current_dao.gen_mysql_val(send(pk.to_sym), attrs[pk])}"
 						end
+						# puts "read lazyload #{a} from db."
 						current_dao.query(load_sql).each do |value|
 							value = current_dao.parse_mysql_val(value, type)
 							instance_variable_set "@#{a}".to_sym, value
@@ -391,14 +394,19 @@ class DynamicMysqlDao < MysqlDao
 		val
 	end
 
-	def query_objs(table, whereClause = "")
+	def query_objs(table, whereClause = "", opt={})
+		whereClause, opt = '', whereClause if whereClause.is_a?(Hash) && opt.empty?
+		omit_column = opt[:omit_column] || []
 		clazz = get_class table
 		raise "Cannot get class from table:#{table}" unless clazz.is_a? Class
 		sql = "select "
+		pri_attrs  = clazz.mysql_pri_attrs
 		all_attrs  = clazz.mysql_attrs
 		lazy_attrs = clazz.mysql_lazy_attrs
 		selected_attrs = []
 		all_attrs.each do |name, type|
+			raise "Could not omit attr[#{name}] because it is primary attribute." if omit_column.include?(name.to_sym) && pri_attrs.include?(name)
+			next if omit_column.include? name.to_sym
 			next if lazy_attrs[name] == true
 			selected_attrs.push name
 			sql << "#{name}, "
@@ -407,6 +415,8 @@ class DynamicMysqlDao < MysqlDao
 		ret = []
 		query(sql).each do |row|
 			obj = clazz.new
+			obj.unload_columns = omit_column
+			# puts "set unload_columns #{omit_column.inspect}"
 			obj.__init_from_db = true
 			selected_attrs.each_with_index do |name, index|
 				type = all_attrs[name]
@@ -427,15 +437,23 @@ class DynamicMysqlDao < MysqlDao
 		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
 		setSql = ""
+		pri_attrs = obj.class.mysql_pri_attrs
 		lazy_attrs = obj.class.mysql_lazy_attrs
 		mysql_attrs_info = obj.class.mysql_attrs_info
+		# puts obj.unload_columns.inspect
 		obj.class.mysql_attrs.each do |col, type|
 			val = obj.mysql_attr_get col
+			should_next = false
+			# Do not overwrite unload columns.
+			should_next = true if obj.unload_columns != nil && obj.unload_columns.include?(col.to_sym)
 			# Do not overwrite unload lazy attrs.
-			next if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
+			should_next = true if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
 			value = gen_mysql_val(val, type)
 			# Do not use NULL to overwrite attr that has default value.
-			next if value == 'NULL' && mysql_attrs_info[col][:default_value] != nil
+			should_next = true if value == 'NULL' && mysql_attrs_info[col][:default_value] != nil
+			# Error if should_next on a primary key.
+			raise "Could not determine primary key when saving obj:#{obj.inspect}" if should_next && pri_attrs.include?(col)
+			next if should_next
 			setSql << "#{col}=#{value}, "
 		end
 		setSql = setSql[0..-3]

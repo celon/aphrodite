@@ -109,10 +109,10 @@ class TestDao < TestBoard
 			create_table_sql = <<SQL
 			CREATE TABLE `test_dao` (
 				`tid` bigint(20) NOT NULL,
-				`price` double(16,8) NOT NULL,
-				`amount` double(16,8) NOT NULL,
-				`type` tinyint(2) NOT NULL DEFAULT 9,
 				`bindata` longblob DEFAULT NULL COMMENT 'lazyload',
+				`price` double(16,8) ,
+				`amount` double(16,8) ,
+				`type` tinyint(2) NOT NULL DEFAULT 9,
 				PRIMARY KEY (`tid`)
 			) ENGINE=`InnoDB` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ROW_FORMAT=COMPACT CHECKSUM=0 DELAY_KEY_WRITE=0;
 SQL
@@ -151,6 +151,25 @@ SQL
 			all_data[0].save true
 			all_data = dao.query_objs 'test_dao'
 			assert_equal all_data[0].bindata, "Re-written data"
+			# Read with omit option.
+			begin
+				all_data = dao.query_objs 'test_dao', omit_column:[:tid, :price]
+			rescue => e
+				assert e.message.start_with? 'Could not omit attr'
+				assert e.message.end_with? 'because it is primary attribute.'
+			end
+			all_data = dao.query_objs 'test_dao', omit_column:[:amount, :price]
+			assert_equal all_data.size, 1
+			assert_equal all_data[0].tid, 1
+			assert_equal all_data[0].price, nil
+			assert_equal all_data[0].amount, nil
+			assert_equal all_data[0].type, 9
+			assert_equal all_data[0].bindata(no_load:true), nil
+			assert_equal all_data[0].bindata, 'Re-written data'
+			all_data[0].save true
+			all_data = dao.query_objs 'test_dao'
+			assert_equal all_data[0].price, 2.2
+			assert_equal all_data[0].amount, 3.3
 
 			# Pack and parse.
 			data = clazz.new data.to_hash
