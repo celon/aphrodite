@@ -172,6 +172,9 @@ class DynamicMysqlObj
 			name = self.class.mysql_col_to_attr_name(col)
 			val = map[name] if val.nil?
 			val = map[name.to_sym] if val.nil?
+			name2 = to_camel(col)
+			val = map[name2] if val.nil?
+			val = map[name2.to_sym] if val.nil?
 			# Abort if still miss.
 			next if val.nil?
 			mysql_attr_set col, val
