@@ -135,6 +135,7 @@ end
 class DynamicMysqlObj
 	extend EncodeUtil
 	include LockUtil
+	include EncodeUtil
 
 	# Record any un-read columns.
 	attr_accessor :unload_columns
