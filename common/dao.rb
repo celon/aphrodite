@@ -238,10 +238,11 @@ class DynamicMysqlDao < MysqlDao
 		attrs = {}
 		attrs_info = {}
 		lazy_attrs, pri_attrs = {}, []
-		query("SHOW FULL COLUMNS FROM #{table}").each do |name, type, c, allow_null, key, default_value, e, p, comment|
+		query("SHOW FULL COLUMNS FROM #{table}").each do |name, type, c, allow_null, key, default_value, extra, p, comment|
 			attrs_info[name] = {
 				:allow_null	=> (allow_null == 'YES'),
-				:default_value	=>	default_value
+				:default_value	=>	default_value,
+				:auto_increment => extra.include?('auto_increment')
 			}
 			type = type.split('(')[0]
 			selectSql << "#{name}, "
@@ -455,8 +456,10 @@ class DynamicMysqlDao < MysqlDao
 			value = gen_mysql_val(val, type)
 			# Do not use NULL to overwrite attr that has default value.
 			should_next = true if value == 'NULL' && mysql_attrs_info[col][:default_value] != nil
-			# Error if should_next on a primary key.
-			raise "Could not determine primary key when saving obj:#{obj.inspect}" if should_next && pri_attrs.include?(col)
+			# Do not use NULL to overwrite attr that is auto increment.
+			should_next = true if value == 'NULL' && mysql_attrs_info[col][:auto_increment] == true
+			# Error if should_next on a primary key and not auto increment.
+			raise "Could not determine primary key [#{col}] when saving obj:#{obj.inspect}" if should_next && pri_attrs.include?(col) && mysql_attrs_info[col][:auto_increment] == false
 			next if should_next
 			setSql << "#{col}=#{value}, "
 		end
