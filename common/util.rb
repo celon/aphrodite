@@ -325,6 +325,53 @@ module MQUtil
 	end
 	thread_safe :mq_exists?, :mq_push
 
+	def mq_redirect(from_queue, to_queue)
+		unless mq_exists? from_queue
+			Logger.highlight "MQ[#{from_queue}] not exist, abort."
+			return -1
+		end
+		q = mq_createq from_queue
+		q2 = mq_createq to_queue
+		remain_ct = q.message_count
+		processedCount = 0
+		Logger.debug "Subscribe MQ:#{from_queue} count:[#{remain_ct}]"
+		return 0 if remain_ct == 0
+		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
+			# Compatibility variables for both march_hare and bunny.
+			delivery_tag, consumer, body = nil, nil, nil
+			if mq_march_hare?
+				metadata, body = a, b
+				delivery_tag = metadata.delivery_tag
+			else
+				delivery_info, properties, body = a, b, c
+				delivery_tag = delivery_info.delivery_tag
+				consumer = delivery_info.consumer
+			end
+			processedCount += 1
+			success = true
+			begin
+				Logger.info "MQ Redirect: #{q.name} -> #{q2.name}: #{processedCount}/#{remain_ct}"
+				data = body
+				# Redirect to other queue.
+				@mq_channel.default_exchange.publish(body, :routing_key => q2.name)
+				# Send ACK.
+				@mq_channel.ack delivery_tag
+			rescue => e
+				Logger.highlight "--> [#{q.name}]: #{body}"
+				Logger.error e
+				exit!
+			end
+			if processedCount == remain_ct
+				if mq_march_hare?
+					break
+				else
+					consumer.cancel
+				end
+			end
+		end
+		processedCount
+	end
+
 	def mq_consume(queue, options={})
 		mq_connect
 		if options[:thread]
@@ -368,7 +415,7 @@ module MQUtil
 		remain_ct = q.message_count
 		processedCount = 0
 		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]"
-		return 0 if remain_ct == 0 and exitOnEmpty
+		return 0 if remain_ct == 0 && exitOnEmpty
 		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.
 			delivery_tag, consumer, body = nil, nil, nil
@@ -414,7 +461,7 @@ module MQUtil
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) unless noerr
 				exit!
 			end
-			if processedCount == remain_ct and exitOnEmpty
+			if processedCount == remain_ct && exitOnEmpty
 				if mq_march_hare?
 					break
 				else
