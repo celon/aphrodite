@@ -125,8 +125,11 @@ class MysqlDao
 				@dbclient.close 
 			end
 		rescue => e
-			Logger.error "Error in closing DB Conn."
-			Logger.error e
+			if e.message.include? 'MySQL server has gone away'
+			else
+				Logger.error "Error in closing DB Conn."
+				Logger.error e
+			end
 		end
 	end
 end
