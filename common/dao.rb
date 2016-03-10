@@ -351,7 +351,8 @@ class DynamicMysqlDao < MysqlDao
 				method = method.to_sym
 				case method
 				when :to_datetime
-					val = DateTime.parse(val) if method == :to_datetime
+					# If mysql2_enabled, val is a Time obj instead of a string.
+					val = DateTime.parse(val.to_s) if method == :to_datetime
 				when :base64
 					val = decode64 val
 				when :json
@@ -405,6 +406,9 @@ class DynamicMysqlDao < MysqlDao
 	def query_objs(table, whereClause = "", opt={})
 		whereClause, opt = '', whereClause if whereClause.is_a?(Hash) && opt.empty?
 		omit_column = opt[:omit_column] || []
+		stream = (opt[:streaming] == true)
+		raise "Option stream won't work without mysql2 enabled" if stream && (@mysql2_enabled == false)
+		raise "Option stream won't work without a given block" if stream && (block_given? == false)
 		clazz = get_class table
 		raise "Cannot get class from table:#{table}" unless clazz.is_a? Class
 		sql = "select "
@@ -420,20 +424,36 @@ class DynamicMysqlDao < MysqlDao
 			sql << "#{name}, "
 		end
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
-		ret = []
-		query(sql).each do |row|
-			obj = clazz.new
-			obj.unload_columns = omit_column
-			# puts "set unload_columns #{omit_column.inspect}"
-			obj.__init_from_db = true
-			selected_attrs.each_with_index do |name, index|
-				type = all_attrs[name]
-				val = parse_mysql_val row[index], type
-				obj.mysql_attr_set name, val
+		if stream
+			query(sql).each(:streaming => true) do |row|
+				obj = clazz.new
+				obj.unload_columns = omit_column
+				# puts "set unload_columns #{omit_column.inspect}"
+				obj.__init_from_db = true
+				selected_attrs.each_with_index do |name, index|
+					type = all_attrs[name]
+					val = parse_mysql_val row[index], type
+					obj.mysql_attr_set name, val
+				end
+				yield obj
 			end
-			ret << obj
+			return nil
+		else
+			ret = []
+			query(sql).each do |row|
+				obj = clazz.new
+				obj.unload_columns = omit_column
+				# puts "set unload_columns #{omit_column.inspect}"
+				obj.__init_from_db = true
+				selected_attrs.each_with_index do |name, index|
+					type = all_attrs[name]
+					val = parse_mysql_val row[index], type
+					obj.mysql_attr_set name, val
+				end
+				ret << obj
+			end
+			return ret
 		end
-		ret
 	end
 
 	def save_all(array, update = false)
