@@ -254,7 +254,7 @@ end
 module CacheUtil
 	# Should add a redis_db function here.
 	def redis
-		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD
+		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD, timeout:20.0, connect_timeout:20.0, reconnect_attempts:10
 	end
 
 	def clear_redis_by_table(table)
