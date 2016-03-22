@@ -17,10 +17,10 @@ module LockUtil
 					# method -> method_without_threadsafe
 					old_method_sym = "#{method}_without_threadsafe".to_sym
 					if clazz.method_defined? old_method_sym
-# 						puts "#{clazz}: #{old_method_sym} alread exists, skip wrap".red
+# 					puts "#{clazz}: #{old_method_sym} alread exists, skip wrap".red
 					else
 						alias_method old_method_sym, method
-# 						puts "#{clazz}: #{method} -> #{method}_without_threadsafe".red
+# 					puts "#{clazz}: #{method} -> #{method}_without_threadsafe".red
 					end
 					clazz.class_eval do
 						# add instance methods: __get_lock4_(method_name)
@@ -43,6 +43,112 @@ module LockUtil
 							end
 # 							puts "#{clazz}\##{self.object_id} end thread_safe method #{method}".green
 							ret
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+module CacheUtil
+	def cache_client
+		redis
+	end
+
+	# Should add a redis_db function here.
+	def redis
+		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD, timeout:20.0, connect_timeout:20.0, reconnect_attempts:10
+	end
+
+	def clear_redis_by_table(table)
+		cmd = "local keys = redis.call('keys', ARGV[1]) for i=1,#keys,5000 do redis.call('del', unpack(keys, i, math.min(i+4999, #keys))) end return keys";
+		@redis.eval(cmd, [], ["SQL_BUFFER:#{table}:*"])
+	end
+end
+
+module Cacheable
+	include CacheUtil
+
+	def self.included(clazz)
+		super
+		# add feature DSL 'cache_by'
+		clazz.singleton_class.class_eval do
+			define_method(:cache_by) do |*args|
+				raise "cache_by need a basename and a key array." if args.size <= 1
+				raise "cache_by need a basename and a key array." unless args[1].is_a?(Array)
+				opt = args[2] || {}
+				type_sorted_set = opt[:type] == :sorted_set
+				value_method = opt[:value] || :to_json
+				# Find an avaiable method name slot.
+				cache_method_key,	cache_method, decache_method = '@__cacheable_key', '__cacheable_cache', '__cacheable_decache'
+				index = 0
+				while true
+					break unless clazz.method_defined?("#{cache_method}_#{index}".to_sym)
+					index += 1
+				end
+				# Define method (de)cacheable_cache_method_#NUM
+				target_cache_method_sym = "#{cache_method}_#{index}".to_sym
+				target_decache_method_sym = "#{decache_method}_#{index}".to_sym
+				clazz.class_eval do
+					define_method(target_cache_method_sym) do
+						# Compute K and V.
+						cache_key = args[0].to_s
+						keys = args[1]
+						middle_keys, score = keys, 0
+						if type_sorted_set
+							# Last key is score of sorted set.
+							last_key, middle_keys = keys[-1], keys[0..-2]
+							score = send(last_key).to_i
+						end
+						middle_keys.each { |k| cache_key = "#{cache_key}:#{send(k).to_s}" }
+						# Remove old data if key changed.
+						old_kv = instance_variable_get "#{cache_method_key}_#{index}".to_sym
+						if old_kv != nil && old_kv[0] != cache_key
+							if type_sorted_set
+								cache_client.zrem old_kv[0], old_kv[1]
+							else
+								cache_client.del old_kv[0]
+							end
+						end
+						value = send value_method
+						instance_variable_set "#{cache_method_key}_#{index}".to_sym, [cache_key, value]
+						# Put data.
+						if type_sorted_set
+							cache_client.zadd cache_key, score, value
+						else
+							cache_client.set cache_key, value
+						end
+					end
+					define_method(target_decache_method_sym) do
+						# ZREM old data.
+						old_kv = instance_variable_get "#{cache_method_key}_#{index}".to_sym
+						if old_kv != nil
+							if type_sorted_set
+								cache_client.zrem old_kv[0], old_kv[1]
+							else
+								cache_client.del old_kv[0]
+							end
+						end
+					end
+					define_method(:cache) do
+						index = 0
+						# Combine all cache methods.
+						while true
+							method_sym = "#{cache_method}_#{index}".to_sym
+							break unless clazz.method_defined?(method_sym)
+							send method_sym
+							index += 1
+						end
+					end
+					define_method(:decache) do
+						index = 0
+						# Combine all decache methods.
+						while true
+							method_sym = "#{decache_method}_#{index}".to_sym
+							break unless clazz.method_defined?(method_sym)
+							send method_sym
+							index += 1
 						end
 					end
 				end
@@ -248,18 +354,6 @@ module LZString
 
 	def lz_decompressFromBase64(string)
 		lz_context.call("LZString.decompressFromBase64", string)
-	end
-end
-
-module CacheUtil
-	# Should add a redis_db function here.
-	def redis
-		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD, timeout:20.0, connect_timeout:20.0, reconnect_attempts:10
-	end
-
-	def clear_redis_by_table(table)
-		cmd = "local keys = redis.call('keys', ARGV[1]) for i=1,#keys,5000 do redis.call('del', unpack(keys, i, math.min(i+4999, #keys))) end return keys";
-		@redis.eval(cmd, [], ["SQL_BUFFER:#{table}:*"])
 	end
 end
 
