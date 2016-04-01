@@ -197,6 +197,10 @@ class DynamicMysqlObj
 		self.class.mysql_dao.save self, update
 	end
 
+	def update
+		self.class.mysql_dao.update self
+	end
+
 	def delete(real = false)
 		self.class.mysql_dao.delete_obj self, real
 	end
@@ -464,11 +468,10 @@ class DynamicMysqlDao < MysqlDao
 	def save(obj, update = false)
 		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
 		sql = "INSERT INTO #{obj.class.mysql_table} SET "
-		setSql = ""
+		set_sql = ""
 		pri_attrs = obj.class.mysql_pri_attrs
 		lazy_attrs = obj.class.mysql_lazy_attrs
 		mysql_attrs_info = obj.class.mysql_attrs_info
-		# puts obj.unload_columns.inspect
 		obj.class.mysql_attrs.each do |col, type|
 			val = obj.mysql_attr_get col
 			should_next = false
@@ -484,11 +487,56 @@ class DynamicMysqlDao < MysqlDao
 			# Error if should_next on a primary key and not auto increment.
 			raise "Could not determine primary key [#{col}] when saving obj:#{obj.inspect}" if should_next && pri_attrs.include?(col) && mysql_attrs_info[col][:auto_increment] == false
 			next if should_next
-			setSql << "#{col}=#{value}, "
+			set_sql << "#{col}=#{value}, "
 		end
-		setSql = setSql[0..-3]
-		sql << setSql
-		sql << " ON DUPLICATE KEY UPDATE " << setSql if update
+		set_sql = set_sql[0..-3]
+		sql << set_sql
+		sql << " ON DUPLICATE KEY UPDATE " << set_sql if update
+		query sql
+	end
+
+	def update(obj)
+		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
+		sql = "UPDATE #{obj.class.mysql_table} SET "
+		set_sql = ""
+		pri_attrs = obj.class.mysql_pri_attrs
+		lazy_attrs = obj.class.mysql_lazy_attrs
+		mysql_attrs_info = obj.class.mysql_attrs_info
+		obj.class.mysql_attrs.each do |col, type|
+			val = obj.mysql_attr_get col
+			should_next = false
+			# Do not overwrite primary keys.
+			should_next = true if pri_attrs.include?(col)
+			# Do not overwrite unload columns.
+			should_next = true if obj.unload_columns != nil && obj.unload_columns.include?(col.to_sym)
+			# Do not overwrite unload lazy attrs.
+			should_next = true if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
+			value = gen_mysql_val(val, type)
+			# Do not use NULL to overwrite attr that has default value.
+			should_next = true if value == 'NULL' && mysql_attrs_info[col][:default_value] != nil
+			# Do not use NULL to overwrite attr that is auto increment.
+			should_next = true if value == 'NULL' && mysql_attrs_info[col][:auto_increment] == true
+			next if should_next
+			set_sql << "#{col}=#{value}, "
+		end
+		set_sql = set_sql[0..-3]
+		sql << set_sql
+		where_sql = " where "
+		obj.class.mysql_attrs.each do |col, type|
+			next unless pri_attrs.include?(col)
+			val = obj.mysql_attr_get col
+			should_abort = false
+			# Detect unload columns.
+			should_abort = true if obj.unload_columns != nil && obj.unload_columns.include?(col.to_sym)
+			# Detect unload lazy attrs.
+			should_abort = true if lazy_attrs[col] == true && obj.send("__#{col}_loaded".to_sym) != true
+			# Error if should_abort on a primary key.
+			raise "Could not determine primary key [#{col}] when updating obj:#{obj.inspect}" if should_abort && pri_attrs.include?(col)
+			value = gen_mysql_val(val, type)
+			where_sql << "#{col}=#{value} and "
+		end
+		where_sql = where_sql[0..-6]
+		sql << where_sql
 		query sql
 	end
 
