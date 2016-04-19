@@ -276,12 +276,14 @@ module SpiderUtil
 
 	def curl(url, opt={})
 		file = opt[:file]
+		agent = opt[:agent]
 		tmp_file_use = false
 		if file.nil?
 			file = "curl_#{hash_str(url)}.html"
 			tmp_file_use = true
 		end
 		cmd = "curl --silent --output '#{file}'"
+		cmd += " -A '#{agent}'" unless agent.nil?
 		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
 		cmd += " '#{url}'"
