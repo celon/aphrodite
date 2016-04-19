@@ -1,5 +1,23 @@
 if defined? using == 'method'
 	module EncodeRefine
+		refine ::Date do
+			def to_mysql_time
+				self.strftime "%Y-%m-%d 00:00:00"
+			end
+	
+			def to_yyyymmdd
+				self.strftime "%Y%m%d"
+			end
+	
+			def to_yyyymm
+				self.strftime "%Y%m"
+			end
+
+			def to_i
+				self.strftime('%Q').to_i
+			end
+		end
+
 		refine ::DateTime do
 			def to_mysql_time
 				self.strftime "%Y-%m-%d %H:%M:%S"
@@ -7,6 +25,10 @@ if defined? using == 'method'
 	
 			def to_yyyymmdd
 				self.strftime "%Y%m%d"
+			end
+	
+			def to_yyyymm
+				self.strftime "%Y%m"
 			end
 
 			def to_i
@@ -57,6 +79,24 @@ else
 		end
 	end
 
+	class ::Date
+		def to_mysql_time
+			self.strftime "%Y-%m-%d 00:00:00"
+		end
+
+		def to_yyyymmdd
+			self.strftime "%Y%m%d"
+		end
+
+		def to_yyyymm
+			self.strftime "%Y%m"
+		end
+
+		def to_i
+			self.strftime('%Q').to_i
+		end
+	end
+
 	class ::DateTime
 		def to_mysql_time
 			self.strftime "%Y-%m-%d %H:%M:%S"
@@ -64,6 +104,10 @@ else
 
 		def to_yyyymmdd
 			self.strftime "%Y%m%d"
+		end
+
+		def to_yyyymm
+			self.strftime "%Y%m"
 		end
 
 		def to_i
