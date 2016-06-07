@@ -61,9 +61,15 @@ module CacheUtil
 		@redis ||= Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD, timeout:20.0, connect_timeout:20.0, reconnect_attempts:10
 	end
 
-	def clear_redis_by_table(table)
+	def clear_redis_by_prefix(prefix)
+		return if prefix.nil?
 		cmd = "local keys = redis.call('keys', ARGV[1]) for i=1,#keys,5000 do redis.call('del', unpack(keys, i, math.min(i+4999, #keys))) end return keys";
-		@redis.eval(cmd, [], ["SQL_BUFFER:#{table}:*"])
+		Logger.debug "Clearing redis by prefix:[#{prefix}]"
+		redis.eval(cmd, [], ["#{prefix}*"])
+	end
+
+	def clear_redis_by_table(table)
+		clear_redis_by_prefix "SQL_BUFFER:#{table}:"
 	end
 end
 
