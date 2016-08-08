@@ -41,7 +41,8 @@ class MysqlDao
 				Logger.info "Initialize MySQL to #{DB_USER}@#{DB_HOST}"
 				if @mysql2_enabled
 					Logger.highlight "Use mysql2 lib."
-					port = DB_PORT if defined? MysqlDao::DB_PORT
+					port = 3306
+					port = DB_PORT if defined? DB_PORT
 					dbclient = Mysql2::Client.new host: DB_HOST, port: port, username: DB_USER, password: DB_PSWD, database: DB_NAME, encoding: 'utf8', reconnect:true, as: :array
 					break
 				else
