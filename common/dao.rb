@@ -384,7 +384,7 @@ class DynamicMysqlDao < MysqlDao
 		return "'#{val}'" if type.empty?
 		string = val
 		# Pack in reverse order.
-		hex_pack = false
+		hex_pack, base64_pack = false, false
 		type.reverse.each do |t|
 			method = MYSQL_TYPE_MAP[t.to_sym]
 			raise "Unsupport mysql type:#{type}" if method.nil?
@@ -399,12 +399,14 @@ class DynamicMysqlDao < MysqlDao
 			when :bin
 				val = "UNHEX('#{val.to_s.b.unpack('H*')[0]}')"
 				hex_pack = true
-			when :to_s
+			when :to_s # In case of injection.
+				val = "FROM_BASE64('#{encode64(val)}')"
+				base64_pack = true
 			else
 				val = val.to_s
 			end
 		end
-		val = "'#{val}'" if val.is_a?(String) && !hex_pack
+		val = "'#{val}'" if val.is_a?(String) && !(hex_pack || base64_pack)
 		val
 	end
 
