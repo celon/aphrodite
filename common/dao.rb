@@ -78,8 +78,7 @@ class MysqlDao
 					next
 				end
 				Logger.error "Error in listing tables."
-				Logger.error e
-				return -1
+				raise e
 			end
 		end
 	end
@@ -104,8 +103,7 @@ class MysqlDao
 					raise e
 				end
 				Logger.error "Error in querying sql:#{sql}"
-				Logger.error e
-				return -1
+				raise e
 			end
 		end
 	end
