@@ -39,9 +39,16 @@ if defined? using == 'method'
 		refine ::Fixnum do
 			def strftime(format='%FT%T%:z')
 				if self > 9999999999
-					return Date.strptime(self.to_s, '%Q').strftime format
+					return DateTime.strptime(self.to_s, '%Q').strftime format
 				end
 				DateTime.strptime(self.to_s, '%s').strftime format
+			end
+
+			def to_time
+				if self > 9999999999
+					return DateTime.strptime(self.to_s, '%Q')
+				end
+				DateTime.strptime(self.to_s, '%s')
 			end
 		end
 	

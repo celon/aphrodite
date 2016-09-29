@@ -384,14 +384,16 @@ module MQUtil
 	def mq_connect(opt={})
 		return @mq_conn unless @mq_conn.nil?
 		# Use Bunny, otherwise March-hare
+		port = 5672
+		port = RABBITMQ_PORT if defined? RABBITMQ_PORT
 		if defined? Bunny
 			Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
 			@mq_march_hare = false
-			mq_conn_int = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+			mq_conn_int = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :port => port, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		else
 			Logger.warn "Use march_hare instead of bunny." if opt[:march_hare] == false
 			@mq_march_hare = true
-			mq_conn_int = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
+			mq_conn_int = MarchHare.connect(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :port => port, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		end
 		mq_conn_int.start
 		@mq_qlist = {}
