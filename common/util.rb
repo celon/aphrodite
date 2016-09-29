@@ -233,9 +233,10 @@ end
 module SpiderUtil
 	include EncodeUtil
 
-	def parse_web(url, encoding = nil, max_ct = -1)
+	def parse_web(url, encoding = nil, max_ct = -1, opt = {})
 		doc = nil
 		ct = 0
+		retry_delay = opt[:retry_delay] || 1
 		while true
 			begin
 				newurl = URI.escape url
@@ -260,7 +261,7 @@ module SpiderUtil
 				Logger.debug "error in parsing [#{url}]:\n#{e.message}"
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
-				sleep 1
+				sleep retry_delay
 			end
 		end
 	end
@@ -268,6 +269,7 @@ module SpiderUtil
 	def curl_native(url, opt={})
 		filename = opt[:file]
 		max_ct = opt[:retry] || -1
+		retry_delay = opt[:retry_delay] || 1
 		doc = nil
 		ct = 0
 		while true
@@ -280,7 +282,7 @@ module SpiderUtil
 				Logger.debug "error in downloading #{url}: #{e.message}"
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
-				sleep 1
+				sleep retry_delay
 			end
 		end
 	end
@@ -288,6 +290,7 @@ module SpiderUtil
 	def curl(url, opt={})
 		file = opt[:file]
 		agent = opt[:agent]
+		retry_delay = opt[:retry_delay] || 1
 		tmp_file_use = false
 		if file.nil?
 			file = "curl_#{hash_str(url)}.html"
@@ -296,6 +299,7 @@ module SpiderUtil
 		cmd = "curl --silent --output '#{file}'"
 		cmd += " -A '#{agent}'" unless agent.nil?
 		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
+		cmd += " --retry-delay #{retry_delay}"
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
 		cmd += " '#{url}'"
 		ret = system(cmd)
