@@ -398,7 +398,7 @@ class DynamicMysqlDao < MysqlDao
 				val = "UNHEX('#{val.to_s.b.unpack('H*')[0]}')"
 				hex_pack = true
 			when :to_s # In case of injection.
-				val = "FROM_BASE64('#{encode64(val)}')"
+				val = "FROM_BASE64('#{encode64(val.to_s)}')"
 				base64_pack = true
 			else
 				val = val.to_s
