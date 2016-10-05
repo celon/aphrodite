@@ -243,7 +243,7 @@ module SpiderUtil
 				if newurl != url
 					# Use java version curl
 					doc = curl_javaver url
-					next if doc == nil
+					raise "Cannot download with java curl" if doc == nil
 					if encoding.nil?
 						doc = Nokogiri::HTML(doc)
 					else
@@ -330,6 +330,7 @@ module SpiderUtil
 			File.delete(file) if tmp_file_use
 		else
 			result = nil
+			raise ret
 		end
 		result
 	end
