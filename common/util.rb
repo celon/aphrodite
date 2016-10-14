@@ -263,6 +263,10 @@ end
 module SpiderUtil
 	include EncodeUtil
 
+	def parse_html(html, encoding=nil, opt={})
+		return Nokogiri::HTML(html, nil, encoding)
+	end
+
 	def parse_web(url, encoding = nil, max_ct = -1, opt = {})
 		doc = nil
 		ct = 0
