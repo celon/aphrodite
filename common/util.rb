@@ -324,12 +324,19 @@ module SpiderUtil
 
 	def curl(url, opt={})
 		file = opt[:file]
+		use_cache = opt[:use_cache] == true
 		agent = opt[:agent]
 		retry_delay = opt[:retry_delay] || 1
 		tmp_file_use = false
 		if file.nil?
 			file = "curl_#{hash_str(url)}.html"
 			tmp_file_use = true
+		end
+		# Directly return from cache file if use_cache=true
+		if file != nil && File.file?(file) && use_cache == true
+			Logger.debug("#{cmd} --> directly return cache:#{file}") if opt[:verbose] == true
+			result = File.open(file, "rb").read
+			return result
 		end
 		cmd = "curl --silent --output '#{file}'"
 		cmd += " -A '#{agent}'" unless agent.nil?
