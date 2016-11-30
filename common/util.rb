@@ -265,13 +265,23 @@ module SpiderUtil
 	include EncodeUtil
 
 	def parse_html(html, encoding=nil, opt={})
+		if encoding.is_a?(Hash)
+			opt = encoding
+			encoding = opt[:encoding]
+		end
 		return Nokogiri::HTML(html, nil, encoding)
 	end
 
 	def parse_web(url, encoding = nil, max_ct = -1, opt = {})
+		if encoding.is_a?(Hash)
+			opt = encoding
+			encoding = opt[:encoding]
+			max_ct = opt[:max_ct] || -1
+		end
 		doc = nil
 		ct = 0
 		retry_delay = opt[:retry_delay] || 1
+		abort_exp = opt[:abort_on]
 		while true
 			begin
 				newurl = URI.escape url
@@ -294,6 +304,11 @@ module SpiderUtil
 				return doc
 			rescue => e
 				Logger.debug "error in parsing [#{url}]:\n#{e.message}"
+				unless abort_exp.nil?
+					abort_exp.each do |reason|
+						raise e if e.message.include?(reason)
+					end
+				end
 				ct += 1
 				raise e if max_ct > 0 && ct >= max_ct
 				sleep retry_delay
