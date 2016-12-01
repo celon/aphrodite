@@ -353,14 +353,16 @@ module SpiderUtil
 			result = File.open(file, "rb").read
 			return result
 		end
-		cmd = "curl --silent --output '#{file}'"
+		cmd = "curl --output '#{file}'"
+		cmd += " --fail" unless opt[:allow_http_error]
+		cmd += " --silent" unless opt[:verbose]
 		cmd += " -A '#{agent}'" unless agent.nil?
 		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
 		cmd += " --retry-delay #{retry_delay}"
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
 		cmd += " '#{url}'"
+		Logger.debug("#{cmd}") if opt[:verbose]
 		ret = system(cmd)
-		Logger.debug("#{cmd} --> #{ret}") if opt[:verbose] == true
 		if File.exist?(file)
 			result = File.open(file, "rb").read
 			File.delete(file) if tmp_file_use
