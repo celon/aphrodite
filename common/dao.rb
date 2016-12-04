@@ -5,6 +5,7 @@ class MysqlDao
 	attr_reader :thread_safe
 
 	def initialize(opt={})
+		@option = opt
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
 		if @mysql2_enabled && defined?(Mysql2).nil?
@@ -20,14 +21,14 @@ class MysqlDao
 				thread_safe :init_dbclient
 			end
 		end
-		init_dbclient
+		init_dbclient @option
 	end
 
 	def mysql2_enabled?
 		@mysql2_enabled
 	end
 
-	def init_dbclient
+	def init_dbclient(opt={})
 		close
 		unless @activeRecordPool.nil?
 			@poolAdapter = @activeRecordPool.checkout
@@ -36,20 +37,24 @@ class MysqlDao
 			return
 		end
 		dbclient = nil
+		@dbuser = opt[:user] || DB_USER
+		@dbhost = opt[:host] || DB_HOST
+		@dbport = 3306
+		@dbport = DB_PORT if defined? DB_PORT
+		@dbport = opt[:port] || @dbport
+		@dbpswd = opt[:pswd] || DB_PSWD
+		@dbencoding = opt[:encoding] || 'utf8'
 		while true do
 			begin
-				Logger.info "Initialize MySQL to #{DB_USER}@#{DB_HOST}"
+				Logger.info "Initialize MySQL to #{@dbuser}@#{@dbhost}"
 				if @mysql2_enabled
 					Logger.highlight "Use mysql2 lib."
-					port = 3306
-					port = DB_PORT if defined? DB_PORT
-					dbclient = Mysql2::Client.new host: DB_HOST, port: port, username: DB_USER, password: DB_PSWD, database: DB_NAME, encoding: 'utf8', reconnect:true, as: :array
+					dbclient = Mysql2::Client.new host:@dbhost, port:@dbport, username:@dbuser, password:@dbpswd, database:@dbname, encoding:@dbencoding, reconnect:true, as: :array
 					break
 				else
 					dbclient = Mysql.init
-					dbclient.options Mysql::SET_CHARSET_NAME, 'utf8'
-					port = DB_PORT if defined? DB_PORT
-					dbclient.real_connect(DB_HOST, DB_USER, DB_PSWD, DB_NAME, DB_PORT)
+					dbclient.options Mysql::SET_CHARSET_NAME, @dbencoding
+					dbclient.real_connect @dbhost, @dbuser, @dbpswd, @dbname, @dbport
 					break
 				end
 			rescue Exception
@@ -62,7 +67,7 @@ class MysqlDao
 	end
 
 	def list_tables
-		init_dbclient if @dbclient.nil?
+		init_dbclient @option if @dbclient.nil?
 		while true
 			begin
 				tables = []
@@ -74,7 +79,7 @@ class MysqlDao
 				if e.message == "MySQL server has gone away"
 					Logger.info(e.message + ", retry.")
 					sleep 1
-					init_dbclient
+					init_dbclient @option
 					next
 				end
 				Logger.error "Error in listing tables."
@@ -88,7 +93,7 @@ class MysqlDao
 	end
 
 	def query(sql, log = false)
-		init_dbclient if @dbclient.nil?
+		init_dbclient @option if @dbclient.nil?
 		while true
 			begin
 				Logger.debug sql if log == true
@@ -97,7 +102,7 @@ class MysqlDao
 				if e.message == "MySQL server has gone away"
 					Logger.info(e.message + ", retry.")
 					sleep 1
-					init_dbclient
+					init_dbclient @option
 					next
 				elsif e.message.start_with? "Duplicate entry "
 					raise e
@@ -120,7 +125,7 @@ class MysqlDao
 		end
 		begin
 			if @dbclient != nil
-				Logger.info "Closing MySQL conn #{DB_USER}@#{DB_HOST}"
+				Logger.info "Closing MySQL conn #{@dbuser}@#{@dbhost}"
 				@dbclient.close 
 			end
 		rescue => e
@@ -539,11 +544,6 @@ class DynamicMysqlDao < MysqlDao
 		where_sql = where_sql[0..-6]
 		sql << where_sql
 		query sql
-	end
-
-	def delete_all(array, real = false)
-		raise "Only receive obj arrays." unless array.is_a? Array
-		array.each { |o| delete_obj o, real }
 	end
 
 	def delete_obj(obj, real = false)
