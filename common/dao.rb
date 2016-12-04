@@ -38,6 +38,7 @@ class MysqlDao
 		end
 		dbclient = nil
 		@dbuser = opt[:user] || DB_USER
+		@dbname = opt[:dbname] || DB_NAME
 		@dbhost = opt[:host] || DB_HOST
 		@dbport = 3306
 		@dbport = DB_PORT if defined? DB_PORT
