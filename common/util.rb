@@ -574,6 +574,7 @@ module MQUtil
 		allow_dup_entry = options[:allow_dup_entry] == true
 		exitOnEmpty = options[:exitOnEmpty] == true
 		mqc_name = (options[:header] || '')
+		max_process_ct = options[:max_process_ct] || -1
 	
 		options[:dao] = 'given' unless dao.nil?
 		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
@@ -634,7 +635,7 @@ module MQUtil
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) unless noerr
 				exit!
 			end
-			if processedCount == remain_ct && exitOnEmpty
+			if (processedCount == remain_ct && exitOnEmpty) || (max_process_ct > 0 && max_process_ct <= processedCount)
 				if mq_march_hare?
 					break
 				else
