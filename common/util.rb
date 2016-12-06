@@ -342,6 +342,7 @@ module SpiderUtil
 		use_cache = opt[:use_cache] == true
 		agent = opt[:agent]
 		retry_delay = opt[:retry_delay] || 1
+		encoding = opt[:encoding]
 		tmp_file_use = false
 		if file.nil?
 			file = "curl_#{hash_str(url)}.html"
@@ -361,10 +362,21 @@ module SpiderUtil
 		cmd += " --retry-delay #{retry_delay}"
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
 		cmd += " '#{url}'"
-		Logger.debug("#{cmd}") if opt[:verbose]
+		Logger.debug(cmd) if opt[:verbose]
 		ret = system(cmd)
 		if File.exist?(file)
+			unless encoding.nil?
+				cmd = "iconv -f #{encoding} -t utf-8//IGNORE '#{file}' -o '#{file}.utf8'"
+				Logger.debug(cmd) if opt[:verbose]
+				system(cmd)
+				cmd = "mv '#{file}.utf8' '#{file}'"
+				Logger.debug(cmd) if opt[:verbose]
+				system(cmd)
+			end
+		end
+		if File.exist?(file)
 			result = File.open(file, "rb").read
+			result = result.force_encoding('utf-8') unless encoding.nil?
 			File.delete(file) if tmp_file_use
 		else
 			result = nil
