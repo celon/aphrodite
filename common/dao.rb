@@ -5,6 +5,8 @@ class MysqlDao
 	attr_reader :thread_safe
 
 	def initialize(opt={})
+		@debug= opt[:debug] == true
+		@verbose = (opt[:verbose] == true) || @debug
 		@option = opt
 		@activeRecordPool = opt[:activeRecordPool]
 		@mysql2_enabled = opt[:mysql2] == true
@@ -97,7 +99,8 @@ class MysqlDao
 		init_dbclient @option if @dbclient.nil?
 		while true
 			begin
-				Logger.debug sql if log == true
+				Logger.debug sql if log || @verbose
+				sleep 0.1 if @debug
 				return dbclient_query(sql)
 			rescue => e
 				if e.message == "MySQL server has gone away"
