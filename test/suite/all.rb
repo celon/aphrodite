@@ -19,6 +19,19 @@ class TestBoard < Minitest::Test
 end
 
 class TestTwitter < TestBoard
+	def setup
+		super
+		@target_class = Class.new do
+			include APD::TwitterUtil
+		end
+		@instance = @target_class.new
+	end
+
+	def test_twitter
+		puts 'hey'
+		puts @instance.twt_tweets('BBCWorld').to_json
+		assert true
+	end
 end
 
 class TestUtil < TestBoard

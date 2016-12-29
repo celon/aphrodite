@@ -1,3 +1,4 @@
+test/conf/secret_conf.rb
 test/tmp
 */Gemfile.lock
 Gemfile.lock
