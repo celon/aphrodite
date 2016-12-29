@@ -18,6 +18,9 @@ class TestBoard < Minitest::Test
 	end
 end
 
+class TestTwitter < TestBoard
+end
+
 class TestUtil < TestBoard
 	def setup
 		super

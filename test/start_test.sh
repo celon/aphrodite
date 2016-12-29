@@ -16,11 +16,22 @@ rubyver=$1
 
 cd $DIR
 echo "==================================="
-echo "Testing under $rubyver"
+echo "Test under $rubyver"
+# rvm get stable
 rvm 2>/dev/null 1>/dev/null || abort 'rvm failure.'
-rvm use $rubyver || ( rvm install $rubyver && rvm use $rubyver ) || abort 'ruby env failure.'
+rvm reload
+echo "Switch to ruby $rubyver"
+rvm use $rubyver || ( rvm install $rubyver && rvm use $rubyver && gem install bundle && bundle install ) || abort 'ruby env failure.'
 rm -rf $DIR/../Gemfile.lock $DIR/Gemfile.lock 2>&1 > /dev/null
 cd $DIR
-bundle install 2>/dev/null 1>/dev/null || abort 'bundler install failure'
-ruby $DIR/suite/all.rb
+# echo "Preparing gems"
+# bundle install 2>/dev/null 1>/dev/null || abort 'bundler install failure'
+
+if [[ -z $2 ]]; then
+	echo "Full test suites start"
+	ruby $DIR/suite/all.rb
+else
+	echo "Single test suites start: $2"
+	ruby $DIR/suite/all.rb --name $2
+fi
 cd $PWD
