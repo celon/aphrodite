@@ -50,7 +50,7 @@ module MQUtil
 		mq_connect
 		verbose = opt[:verbose]
 		mq_createq route_key if @mq_qlist[route_key].nil?
-		content = [*content]
+		content = [content] unless content.is_a? Array
 		content.each do |piece|
 			next if piece.nil?
 			payload = piece
