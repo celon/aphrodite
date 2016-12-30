@@ -4,7 +4,9 @@ gem 'minitest'
 require 'minitest/autorun'
 require 'openssl'
 
-OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+# Only if openssl is toooooold
+# OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+
 class TestBoard < Minitest::Test
 	def setup
 		require_relative '../../common/bootstrap'
@@ -28,8 +30,14 @@ class TestTwitter < TestBoard
 	end
 
 	def test_twitter
-		puts 'hey'
-		puts @instance.twt_tweets('BBCWorld').to_json
+		@instance.twitter_api(:home_timeline, count:300).each_with_index do |t, i|
+			puts i
+			puts t.id
+			puts t.full_text
+# 			puts t.uri
+# 			puts t.user_mentions
+# 			puts t.attrs.to_json
+		end
 		assert true
 	end
 end
