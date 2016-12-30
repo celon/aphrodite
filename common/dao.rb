@@ -248,7 +248,7 @@ class DynamicMysqlDao < MysqlDao
 
 	def get_class(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
-		Logger.debug "Detecting table[#{table}] structure."
+		Logger.debug "Detecting table[#{table}] structure." if @debug || @verbose
 		selectSql = "SELECT "
 		attrs = {}
 		attrs_info = {}
@@ -272,7 +272,7 @@ class DynamicMysqlDao < MysqlDao
 				end
 			end
 			pri_attrs << name if key == 'PRI'
-			# Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}"
+			Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}" if @debug || @verbose
 			raise "Unsupported type[#{type}], fitStructure failed." if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
@@ -294,7 +294,7 @@ class DynamicMysqlDao < MysqlDao
 				Logger.highlight "Generate class #{full_class_name} instead, because const conflict."
 			end
 		end
-		Logger.debug "Generate class[#{full_class_name}] for #{table}"
+		Logger.debug "Generate class[#{full_class_name}] for #{table}" if @debug || @verbose
 
 		current_dao = self
 		# Dynamic class generating.
