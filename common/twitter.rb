@@ -30,7 +30,7 @@ module TwitterUtil
 		rescue Twitter::Error::TooManyRequests => e
 			# NOTE: Your process could go to sleep for up to 15 minutes but if you
 			# retry any sooner, it will almost certainly fail with the same exception.
-			graphic_sleep(error.rate_limit.reset_in + 1)
+			graphic_sleep(e.rate_limit.reset_in + 1)
 			retry
 		end
 	end
