@@ -74,8 +74,11 @@ module FileUtil
 				sleep sleep_interval
 				next
 			end
-			yield line.strip if block_given?
 			puts "#{ct.to_s.ljust(5)}: #{line}" if verbose
+			if block_given?
+				ret = yield line.strip
+				break if ret == false
+			end
 			ct += 1
 		end
 	end
