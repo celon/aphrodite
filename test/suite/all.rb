@@ -4,7 +4,9 @@ gem 'minitest'
 require 'minitest/autorun'
 require 'openssl'
 
-OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+# Only if openssl is toooooold
+# OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
+
 class TestBoard < Minitest::Test
 	def setup
 		require_relative '../../common/bootstrap'
@@ -15,6 +17,30 @@ class TestBoard < Minitest::Test
 
 	def compare_test_file(filename)
 		FileUtils.compare_file "#{@tmp_dir}/#{filename}", "#{@res_dir}/#{filename}"
+	end
+end
+
+class TestTwitter < TestBoard
+	def setup
+		super
+		@target_class = Class.new do
+			include APD::TwitterUtil
+		end
+		@instance = @target_class.new
+	end
+
+	def test_twitter
+		begin
+			@instance.twitter_api(:home_timeline, count:300).each_with_index do |t, i|
+				puts i
+				puts t.id
+				puts t.full_text
+			end
+			assert true
+		rescue Twitter::Error::Forbidden => e
+			APD::Logger.info "Unable to verify twitter credentials, skip twitter test."
+			assert true
+		end
 	end
 end
 

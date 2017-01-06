@@ -1,6 +1,7 @@
 gem 'rest-client'
 gem 'ruby-mysql'
 gem 'redis'
+gem 'twitter'
 gem 'nokogiri'
 gem 'logger'
 gem 'colorize'
