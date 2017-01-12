@@ -11,7 +11,7 @@ module MQUtil
 		port = 5672
 		port = RABBITMQ_PORT if defined? RABBITMQ_PORT
 		if defined? Bunny
-			Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
+			# Logger.warn "Bunny found, use it instead of march_hare." if opt[:march_hare] == true
 			@mq_march_hare = false
 			mq_conn_int = Bunny.new(:read_timeout => 20, :heartbeat => 20, :hostname => RABBITMQ_HOST, :port => port, :username => RABBITMQ_USER, :password => RABBITMQ_PSWD, :vhost => "/")
 		else
@@ -141,7 +141,7 @@ module MQUtil
 		max_process_ct = options[:max_process_ct] || -1
 	
 		options[:dao] = 'given' unless dao.nil?
-		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}"
+		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}" unless silent
 	
 		unless mq_exists? queue
 			Logger.highlight "MQ[#{queue}] not exist, abort."
@@ -152,7 +152,7 @@ module MQUtil
 		err_q = mq_createq "#{queue}_err" unless noerr
 		remain_ct = q.message_count
 		processedCount = 0
-		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]"
+		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]" unless silent
 		return 0 if remain_ct == 0 && exitOnEmpty
 		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.

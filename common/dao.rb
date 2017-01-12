@@ -49,9 +49,9 @@ class MysqlDao
 		@dbencoding = opt[:encoding] || 'utf8'
 		while true do
 			begin
-				Logger.info "Initialize MySQL to #{@dbuser}@#{@dbhost}"
+				Logger.info "Initialize MySQL to #{@dbuser}@#{@dbhost}" if @verbose
 				if @mysql2_enabled
-					Logger.highlight "Use mysql2 lib."
+					Logger.highlight "Use mysql2 lib." if @verbose
 					dbclient = Mysql2::Client.new host:@dbhost, port:@dbport, username:@dbuser, password:@dbpswd, database:@dbname, encoding:@dbencoding, reconnect:true, as: :array
 					break
 				else
@@ -129,7 +129,7 @@ class MysqlDao
 		end
 		begin
 			if @dbclient != nil
-				Logger.info "Closing MySQL conn #{@dbuser}@#{@dbhost}"
+				Logger.info "Closing MySQL conn #{@dbuser}@#{@dbhost}" if @verbose
 				@dbclient.close 
 			end
 		rescue => e
@@ -248,7 +248,7 @@ class DynamicMysqlDao < MysqlDao
 
 	def get_class(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
-		Logger.debug "Detecting table[#{table}] structure." if @debug || @verbose
+		Logger.debug "Detecting table[#{table}] structure." if @verbose
 		selectSql = "SELECT "
 		attrs = {}
 		attrs_info = {}
@@ -272,7 +272,7 @@ class DynamicMysqlDao < MysqlDao
 				end
 			end
 			pri_attrs << name if key == 'PRI'
-			Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}" if @debug || @verbose
+			Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}" if @verbose
 			raise "Unsupported type[#{type}], fitStructure failed." if MYSQL_TYPE_MAP[type.to_sym].nil?
 		end
 
@@ -294,7 +294,7 @@ class DynamicMysqlDao < MysqlDao
 				Logger.highlight "Generate class #{full_class_name} instead, because const conflict."
 			end
 		end
-		Logger.debug "Generate class[#{full_class_name}] for #{table}" if @debug || @verbose
+		Logger.debug "Generate class[#{full_class_name}] for #{table}" if @verbose
 
 		current_dao = self
 		# Dynamic class generating.
