@@ -161,7 +161,7 @@ SQL
 			# Check if set nil on attr that has default value.
 			assert_equal all_data[0].type, 9
 			# Lazyload attrs will be nil if set no_load.
-			assert_equal all_data[0].bindata(no_load:true), nil
+			assert_nil all_data[0].bindata(no_load:true)
 			# Save obj with lazy_attr not loaded yet, lazy attr should not be overwritten.
 			all_data[0].save true
 			all_data = dao.query_objs 'test_dao'
@@ -171,7 +171,7 @@ SQL
 			all_data[0].bindata = nil
 			all_data[0].save true
 			all_data = dao.query_objs 'test_dao'
-			assert_equal all_data[0].bindata, nil
+			assert_nil all_data[0].bindata
 			# Overwrite attrs, check coinsistence.
 			all_data[0].bindata = "Re-written data"
 			all_data[0].save true
@@ -187,10 +187,10 @@ SQL
 			all_data = dao.query_objs 'test_dao', omit_column:[:amount, :price]
 			assert_equal all_data.size, 1
 			assert_equal all_data[0].tid, 1
-			assert_equal all_data[0].price, nil
-			assert_equal all_data[0].amount, nil
+			assert_nil all_data[0].price
+			assert_nil all_data[0].amount
 			assert_equal all_data[0].type, 9
-			assert_equal all_data[0].bindata(no_load:true), nil
+			assert_nil all_data[0].bindata(no_load:true)
 			assert_equal all_data[0].bindata, 'Re-written data'
 			all_data[0].save true
 			all_data = dao.query_objs 'test_dao'

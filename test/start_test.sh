@@ -20,6 +20,8 @@ echo "Test under $rubyver"
 rvm 2>/dev/null 1>/dev/null || abort 'rvm failure.'
 rvm reload
 echo "Switch to ruby $rubyver"
+
+rm -rf $DIR/../Gemfile.lock $DIR/Gemfile.lock 2>&1 > /dev/null
 rvm use $rubyver || \
 	( rvm get stable && \
 	  rvm install $rubyver && \
@@ -33,8 +35,6 @@ ruby $DIR/../common/bootstrap.rb || \
 	( gem install bundle && \
 	  bundle install ) || \
 	  	abort 'ruby gem lib failure.'
-
-rm -rf $DIR/../Gemfile.lock $DIR/Gemfile.lock 2>&1 > /dev/null
 
 cd $DIR
 
