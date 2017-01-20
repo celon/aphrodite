@@ -102,8 +102,8 @@ module MQUtil
 				if mq_march_hare?
 					break
 				else
-					# consumer.cancel seems encounter bug under ruby 2.3
-					Logger.debug "Cancelling bunny consumer may cost 1 minute under ruby 2.3" if RUBY_VERSION < '2.3'
+					# consumer.cancel seems encounter bug.
+					Logger.debug "Cancelling bunny consumer may cost 1 minute"
 					consumer.cancel
 				end
 			end
@@ -205,8 +205,8 @@ module MQUtil
 				if mq_march_hare?
 					break
 				else
-					# consumer.cancel seems encounter bug under ruby 2.3
-					Logger.debug "Cancelling bunny consumer may cost 1 minute under ruby 2.3" if RUBY_VERSION < '2.3'
+					# consumer.cancel seems encounter bug.
+					Logger.debug "Cancelling bunny consumer may cost 1 minute"
 					consumer.cancel
 				end
 			end

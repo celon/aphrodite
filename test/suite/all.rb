@@ -96,6 +96,8 @@ class TestUtil < TestBoard
 			# puts "mq_mode:#{mq_mode}, thread_mode:#{thread_mode}, #{prefetch_num}"
 			@instance.mq_connect march_hare:mq_mode
 			@instance.mq_createq 'test'
+			# Only do it under march_hare. Cancelling consumer of bunny is very time consuming.
+			next unless @instance.mq_march_hare?
 			# Clear queue first.
 			@instance.mq_consume('test', dao:@dao, exitOnEmpty:true, silent:true)
 			data = { 'x' => 'y' }
