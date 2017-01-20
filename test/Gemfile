@@ -2,6 +2,8 @@ source 'https://rubygems.org'
 
 if RUBY_ENGINE == 'jruby'
 	gem 'guard-jruby-minitest'
+else
+	gem 'minitest', '~> 5.8', '>= 5.8.4'
 end
 
 # Install gems from Gemfiles dir.

@@ -93,6 +93,7 @@ class TestUtil < TestBoard
 		[false, true].each do |mq_mode|
 		[false, true].each do |thread_mode|
 		[1, 10, 100].each do |prefetch_num|
+			# puts "mq_mode:#{mq_mode}, thread_mode:#{thread_mode}, #{prefetch_num}"
 			@instance.mq_connect march_hare:mq_mode
 			@instance.mq_createq 'test'
 			# Clear queue first.
