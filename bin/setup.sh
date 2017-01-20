@@ -2,6 +2,7 @@
 PWD=$(pwd)
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+APD_DIR="$( cd -P "$( dirname "$SOURCE" )/../" && pwd )"
 
 function abort(){
 	echo "Task abort, reason: $@"
@@ -21,25 +22,27 @@ rvm 2>/dev/null 1>/dev/null || abort 'rvm failure.'
 rvm reload
 echo "Switch to ruby $rubyver"
 
-rm -rvf $DIR/../Gemfile.lock $DIR/../*/Gemfile.lock 2>&1 > /dev/null
+rm -rvf $DIR/../Gemfile.lock $DIR/../*/Gemfile.lock
 
 cd $DIR/../
 
 rvm use $rubyver || \
 	( rvm get stable && \
 	  rvm install $rubyver && \
-	  rvm use $rubyver && \
-	  gem install bundle && \
-	  bundle install ) || \
+	  rvm use $rubyver ) || \
 	  	abort 'ruby env failure.'
 
 echo "Test if bootstrap could be load."
-ruby $DIR/../common/bootstrap.rb || \
+ruby $DIR/../common/bootstrap.rb
+if [ $? -eq 0 ]; then
+	exit
+fi
+cd $DIR/../ && \
 	( gem install bundle && \
-	  bundle install ) || \
-	  	abort 'ruby gem lib failure.'
+	bundle install ) || \
+		abort 'ruby gem lib failure.'
 
-for subdir in $DIR/../*
+for subdir in $DIR $DIR/../*
 do
 	if [ -f $subdir/Gemfile ]; then
 		cd $subdir
@@ -47,3 +50,10 @@ do
 		bundle install || abort 'bundle install failure'
 	fi
 done
+
+echo "Test if bootstrap could be load again."
+ruby $DIR/../common/bootstrap.rb
+if [ $? -eq 0 ]; then
+	exit
+fi
+abort 'ruby gem lib failure.'

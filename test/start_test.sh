@@ -3,10 +3,11 @@ PWD=$(pwd)
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
-$DIR/../bin/setup.sh
+$DIR/../bin/setup.sh $1
 
 cd $DIR
-
+rubyver=$1
+rvm use $rubyver
 if [[ -z $2 ]]; then
 	echo "Full test suites start"
 	ruby $DIR/suite/all.rb --verbose
