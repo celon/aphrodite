@@ -73,7 +73,7 @@ module MQUtil
 		processedCount = 0
 		Logger.debug "Subscribe MQ:#{from_queue} count:[#{remain_ct}]"
 		return 0 if remain_ct == 0
-		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
+		q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.
 			delivery_tag, consumer, body = nil, nil, nil
 			if mq_march_hare?
@@ -102,6 +102,8 @@ module MQUtil
 				if mq_march_hare?
 					break
 				else
+					# consumer.cancel seems encounter bug under ruby 2.3
+					Logger.debug "Cancelling bunny consumer may cost 1 minute under ruby 2.3" if RUBY_VERSION < '2.3'
 					consumer.cancel
 				end
 			end
@@ -154,7 +156,7 @@ module MQUtil
 		processedCount = 0
 		Logger.debug "Subscribe MQ:#{queue} count:[#{remain_ct}]" unless silent
 		return 0 if remain_ct == 0 && exitOnEmpty
-		consumer = q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
+		q.subscribe(:manual_ack => true, :block => true) do |a, b, c|
 			# Compatibility variables for both march_hare and bunny.
 			delivery_tag, consumer, body = nil, nil, nil
 			if mq_march_hare?
@@ -203,6 +205,8 @@ module MQUtil
 				if mq_march_hare?
 					break
 				else
+					# consumer.cancel seems encounter bug under ruby 2.3
+					Logger.debug "Cancelling bunny consumer may cost 1 minute under ruby 2.3" if RUBY_VERSION < '2.3'
 					consumer.cancel
 				end
 			end
