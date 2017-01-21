@@ -20,6 +20,35 @@ class TestBoard < Minitest::Test
 	end
 end
 
+class TestRefine < TestBoard
+	def setup
+		super
+		@target_class = Class.new do
+			using APD::EncodeRefine if defined? using == 'method'
+			include APD::EncodeUtil
+		end
+		@instance = @target_class.new
+	end
+
+	def test_encode_refine
+		t = DateTime.parse "20170107010203.456"
+		assert_equal t.to_full_str, '2017-01-07 01:02:03.456'
+		assert_equal t.to_mysql_time, '2017-01-07 01:02:03'
+		assert_equal t.to_yyyymmdd, '20170107'
+		assert_equal t.to_yyyymm, '201701'
+		assert_equal t.to_i, 1483750923456
+		assert_equal t.to_i.to_time, t
+		t = Date.parse "20170107"
+		assert_equal t.to_full_str, '2017-01-07'
+		assert_equal t.to_mysql_time, '2017-01-07 00:00:00'
+		assert_equal t.to_yyyymmdd, '20170107'
+		assert_equal t.to_yyyymm, '201701'
+		assert_equal t.to_i, 1483747200000
+		assert_equal t.to_i.to_time, t
+		assert_equal (t.to_i/1000).to_time, t
+	end
+end
+
 class TestTwitter < TestBoard
 	def setup
 		super
