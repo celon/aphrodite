@@ -44,12 +44,9 @@ if defined? using == 'method'
 			end
 		end
 	
-		refine ::Fixnum do
+		refine 1.class do
 			def strftime(format='%FT%T%:z')
-				if self > 9999999999
-					return DateTime.strptime(self.to_s, '%Q').strftime format
-				end
-				DateTime.strptime(self.to_s, '%s').strftime format
+				self.to_time.strftime(format)
 			end
 
 			def to_time
@@ -138,12 +135,31 @@ else
 		end
 	end
 
-	class ::Fixnum
-		def strftime(format='%FT%T%:z')
-			if self > 9999999999
-				return Date.strptime(self.to_s, '%Q').strftime format
+	if 1.class == Integer
+		class ::Integer
+			def strftime(format='%FT%T%:z')
+				self.to_time.strftime(format)
 			end
-			DateTime.strptime(self.to_s, '%s').strftime format
+
+			def to_time
+				if self > 9999999999
+					return DateTime.strptime(self.to_s, '%Q')
+				end
+				DateTime.strptime(self.to_s, '%s')
+			end
+		end
+	else
+		class ::Fixnum
+			def strftime(format='%FT%T%:z')
+				self.to_time.strftime(format)
+			end
+
+			def to_time
+				if self > 9999999999
+					return DateTime.strptime(self.to_s, '%Q')
+				end
+				DateTime.strptime(self.to_s, '%s')
+			end
 		end
 	end
 
