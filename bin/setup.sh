@@ -15,16 +15,16 @@ fi
 
 rubyver=$1
 
-cd $DIR
+cd $APD_DIR
 echo "==================================="
 echo "Setup under $rubyver"
 rvm 2>/dev/null 1>/dev/null || abort 'rvm failure.'
 rvm reload
 echo "Switch to ruby $rubyver"
 
-rm -rvf $DIR/../Gemfile.lock $DIR/../*/Gemfile.lock
+rm -rvf $APD_DIR/Gemfile.lock $APD_DIR/*/Gemfile.lock
 
-cd $DIR/../
+cd $APD_DIR/
 
 rvm use $rubyver || \
 	( rvm get stable && \
@@ -33,16 +33,16 @@ rvm use $rubyver || \
 	  	abort 'ruby env failure.'
 
 echo "Test if bootstrap could be load."
-ruby $DIR/../common/bootstrap.rb
+ruby $APD_DIR/common/bootstrap.rb
 if [ $? -eq 0 ]; then
 	exit
 fi
-cd $DIR/../ && \
+cd $APD_DIR/ && \
 	( gem install bundle && \
 	bundle install ) || \
 		abort 'ruby gem lib failure.'
 
-for subdir in $DIR $DIR/../*
+for subdir in $APD_DIR $APD_DIR/*
 do
 	if [ -f $subdir/Gemfile ]; then
 		cd $subdir
@@ -52,7 +52,7 @@ do
 done
 
 echo "Test if bootstrap could be load again."
-ruby $DIR/../common/bootstrap.rb
+ruby $APD_DIR/common/bootstrap.rb
 if [ $? -eq 0 ]; then
 	exit
 fi
