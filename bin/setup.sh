@@ -37,7 +37,7 @@ ruby $APD_DIR/common/bootstrap.rb
 if [ $? -eq 0 ]; then
 	exit
 fi
-cd $APD_DIR/ && \
+cd $APD_DIR/test/ && \
 	( gem install bundle && \
 	bundle install ) || \
 		abort 'ruby gem lib failure.'
