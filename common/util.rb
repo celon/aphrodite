@@ -225,14 +225,15 @@ module SleepUtil
 end
 
 module CycleWorker
-	def cycle_init(opt={})
+	def _cycle_init(opt={})
 		@cycle_roundtime = 60
 		@cycle_roundtime = opt[:roundtime] unless opt[:roundtime].nil?
 		@cycle_roundct = 0
+		cycle_init(opt)
 	end
 
 	def cycle_endless(opt={})
-		cycle_init if @cycle_roundtime.nil?
+		_cycle_init if @cycle_roundtime.nil?
 		verbose = opt[:verbose]
 		while true
 			@cycle_roundct += 1
@@ -246,5 +247,6 @@ module CycleWorker
 		end
 	end
 
+	def cycle_init(opt={}); end
 	def cycle_work; end
 end
