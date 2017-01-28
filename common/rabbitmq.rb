@@ -185,7 +185,13 @@ module MQUtil
 				# Redirect to err queue.
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				dao.save(clazz.new(data), allow_dup_entry) if format == :json && success != false && clazz != nil
+				if format == :json && success != false && clazz != nil
+					begin
+						dao.save(clazz.new(data), allow_dup_entry)
+					rescue Mysql::ServerError::TruncatedWrongValueForField => e
+						success = false
+					end
+				end
 				# Debug only onetime.
 				exit! if debug
 				# Send ACK.
