@@ -7,6 +7,7 @@ gem 'logger'
 gem 'colorize'
 gem 'execjs'
 gem 'connection_pool'
+gem 'ruby-progressbar'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
