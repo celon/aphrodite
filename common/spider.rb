@@ -1,6 +1,12 @@
 module SpiderUtil
 	include EncodeUtil
 
+	USER_AGENTS = {
+		'PHONE'		=> 'Mozilla/5.0 (iPhone; CPU iPhone OS 9_3_5 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13G36 Safari/601.1',
+		'TABLET'	=> 'Mozilla/5.0 (iPad; CPU OS 9_3_5 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13G36 Safari/601.1',
+		'DESKTOP'	=> 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
+	}
+
 	def parse_html(html, encoding=nil, opt={})
 		if encoding.is_a?(Hash)
 			opt = encoding
