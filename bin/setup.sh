@@ -38,7 +38,11 @@ if [ $? -eq 0 ]; then
 	exit
 fi
 cd $APD_DIR/test/ && \
-	( gem install bundle && \
+	( which gem && \
+	echo "Installing bundler" && \
+	gem install bundler && \
+	which bundle && \
+	echo "bundle install" && \
 	bundle install ) || \
 		abort 'ruby gem lib failure.'
 
