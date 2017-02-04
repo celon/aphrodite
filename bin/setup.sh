@@ -57,3 +57,5 @@ if [ $? -eq 0 ]; then
 	exit
 fi
 abort 'ruby gem lib failure.'
+
+echo "Environment OK"

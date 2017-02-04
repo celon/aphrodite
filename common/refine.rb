@@ -1,3 +1,4 @@
+# Encoding: utf-8
 if defined? using == 'method'
 	module EncodeRefine
 		refine ::Date do
