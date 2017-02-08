@@ -77,8 +77,9 @@ end
 
 # Override default puts with additional info.
 Kernel.module_eval do
+	alias :original_puts :puts
 	def puts(o, additionalInfo = true)
 		Logger.log(o, 1) if additionalInfo
-		super(o) if !additionalInfo
+		original_puts(o) if !additionalInfo
 	end
 end
