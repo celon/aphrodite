@@ -27,6 +27,7 @@ module SpiderUtil
 		abort_exp = opt[:abort_on]
 		while true
 			begin
+				Logger.debug "Fetching #{url}" if opt[:verbose] == true
 				newurl = URI.escape url
 				if newurl != url
 					# Use java version curl
