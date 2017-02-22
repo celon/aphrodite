@@ -37,6 +37,7 @@ target_module = APD
 target_module.require_anyof 'bunny', 'march_hare'
 target_module.require_try 'mysql2'
 
+require 'cgi'
 require 'uri'
 require 'open-uri'
 require 'date'

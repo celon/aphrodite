@@ -7,6 +7,45 @@ module SpiderUtil
 		'DESKTOP'	=> 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
 	}
 
+	def post_web(host, path, data, opt={})
+		header = {
+			'User-Agent'			=> 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:51.0) Gecko/20100101 Firefox/51.0',
+			'Accept'					=> '*/*',
+			'Accept-Language'	=> 'en-US,en;q=0.5',
+			'Accept-Encoding'	=> 'gzip, deflate',
+			'Connection'			=> 'keep-alive',
+			'Pragma'					=> 'no-cache',
+			'Cache-Control'		=> 'no-cache'
+		}
+		header = opt[:header] unless opt[:header].nil?
+		header['Host'] ||= host
+
+		verbose = opt[:verbose] == true
+		connect = opt[:connect] ||= Net::HTTP.start(host, (opt[:port] || 80))
+		data = map_to_poststr(data) if data.is_a?(Hash)
+
+		header['Content-Type'] = 'application/x-www-form-urlencoded'
+		header['Content-Length'] = data.size.to_s
+		if verbose
+			puts "SpiderUtil.post: host: #{host}"
+			puts "SpiderUtil.post: path: #{path}"
+			puts "SpiderUtil.post: header: #{header.to_json}"
+			puts "SpiderUtil.post: data: #{data.to_json}"
+		end
+		resp = connect.post path, data, header
+		raise "SpiderUtil.post: HTTP CODE #{resp.code}" if resp.code != '200'
+		body = resp.body
+		# Deflat gzip if possible.
+		if body[0..2].unpack('H*') == ["1f8b08"]
+			size = body.size
+			gz = Zlib::GzipReader.new(StringIO.new(body))    
+			body = gz.read
+			puts "SpiderUtil.post: deflat from gzip #{size} -> #{body.size}" if verbose
+		end
+		puts "SpiderUtil.post: response.body [#{body.size}]:#{body[0..300]}" if verbose
+		body
+	end
+
 	def parse_html(html, encoding=nil, opt={})
 		if encoding.is_a?(Hash)
 			opt = encoding
@@ -148,5 +187,14 @@ module SpiderUtil
 			raise ret
 		end
 		result
+	end
+
+	def map_to_poststr(map)
+		str = ""
+		(map || {}).each do |k, v|
+			v = v.to_s
+			str = "#{CGI::escape(k)}=#{CGI::escape(v)}&#{str}"
+		end
+		str
 	end
 end
