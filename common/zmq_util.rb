@@ -11,9 +11,9 @@ class ZMQAdapter
 		@zmq_connect_method_args = args
 	end
 
-	def zmq_req_connector(addr)
+	def zmq_req_connector(addr, opt={})
 		context = ZMQ::Context.new(1)
-		puts "ZMQ Req connecting to server #{addr} ..."
+		puts "ZMQ Req connecting to server #{addr} ..." if opt[:debug] == true
 		requester = context.socket(ZMQ::REQ)
 		requester.connect addr
 		requester
@@ -111,7 +111,12 @@ class ZMQAdapter
 		end
 	end
 
-	thread_safe :zmq_send, :zmq_recv, :zmq_send_recv
+	def zmq_close
+		zmq_adapter.close
+		@zmq_adapter = nil
+	end
+
+	thread_safe :zmq_send, :zmq_recv, :zmq_send_recv, :zmq_close
 end
 
 class ZMQBroker
