@@ -126,6 +126,7 @@ module SpiderUtil
 		agent = opt[:agent]
 		retry_delay = opt[:retry_delay] || 1
 		encoding = opt[:encoding]
+		header = opt[:header] || {}
 		tmp_file_use = false
 		if file.nil?
 			file = "curl_#{hash_str(url)}.html"
@@ -144,6 +145,9 @@ module SpiderUtil
 		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
 		cmd += " --retry-delay #{retry_delay}"
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
+		header.each do |k, v|
+			cmd += " --header '#{k}: #{v}'"
+		end
 		cmd += " '#{url}'"
 		Logger.debug(cmd) if opt[:verbose]
 		ret = system(cmd)
