@@ -1,7 +1,16 @@
 module FileUtil
 	def tail(file, opt={})
+		return nil unless File.file?(file)
+
 		verbose = opt[:verbose] == true
 		sleep_interval = opt[:interval] || 0.1
+		lines = opt[:number]
+
+		if lines != nil
+			# Just perform tail once.
+			ret = `tail -n#{lines} #{file}`
+			return ret.split("\n")
+		end
 	
 		f = nil
 		begin
