@@ -59,6 +59,9 @@ module SpiderUtil
 			opt = encoding
 			encoding = opt[:encoding]
 			max_ct = opt[:max_ct] || -1
+		else
+			opt[:encoding] ||= encoding
+			opt[:max_ct] ||= max_ct
 		end
 		doc = nil
 		ct = 0
@@ -69,8 +72,7 @@ module SpiderUtil
 				Logger.debug "Fetching #{url}" if opt[:verbose] == true
 				newurl = URI.escape url
 				if newurl != url
-					# Use java version curl
-					doc = curl_javaver url
+					doc = curl url, opt
 					raise "Cannot download with java curl" if doc == nil
 					if encoding.nil?
 						doc = Nokogiri::HTML(doc)
@@ -167,28 +169,6 @@ module SpiderUtil
 			File.delete(file) if tmp_file_use
 		else
 			result = nil
-		end
-		result
-	end
-	
-	def curl_javaver(url, opt={})
-		file = opt[:file]
-		tmp_file_use = false
-		if file.nil?
-			file = "curl_#{hash_str(url)}.html"
-			tmp_file_use = true
-		end
-		jarpath = "#{APD_COMMON_PATH}/res/curl.jar"
-		cmd = "java -jar #{jarpath} '#{url}' #{file}"
-		ret = system(cmd)
-		Logger.debug("#{cmd} --> #{ret}")
-		result = ""
-		if File.exist?(file)
-			result = File.open(file, "rb").read
-			File.delete(file) if tmp_file_use
-		else
-			result = nil
-			raise ret
 		end
 		result
 	end
