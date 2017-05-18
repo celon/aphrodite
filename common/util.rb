@@ -250,3 +250,62 @@ module CycleWorker
 	def cycle_init(opt={}); end
 	def cycle_work; end
 end
+
+module ExecUtil
+	def exec_command(command, opt={})
+		log_prefix = opt[:log_prefix] || ''
+		use_thread = opt[:thread] == true
+		verbose = opt[:verbose] == true
+		status = opt[:status] || {}
+		status['output'] ||= []
+		status_lambda = opt[:status_cb] || lambda {|l| }
+		read, io = IO.pipe
+
+		Logger.info "Prepare to execute command: #{command}"
+
+		# Start a new thread to execute command while collecting realtime logs.
+		logthread = Thread.new do
+			begin
+				Logger.debug "CMD #{log_prefix} Log thread started."
+				line_ct = 0
+				read.each_line do |line|
+					line = line[0..-2]
+					line_ct += 1
+					Logger.debug "CMD #{log_prefix} Log: #{line}" if verbose
+					status['progress'] = "CMD #{log_prefix} \##{line_ct}: #{line}"
+					status['output'].push line
+					status_lambda.call(status)
+				end
+			rescue => e
+				Logger.info "CMD #{log_prefix} Log: error occurred:"
+				Logger.error e
+			end
+			Logger.debug "CMD #{log_prefix} Log thread end."
+		end
+
+		exec_lambda = lambda do
+			begin
+				Logger.info "CMD #{log_prefix} thread started."
+				ret = system(command, out:io, err:io)
+				status['ret'] = ret
+				io.close
+			rescue => e
+				Logger.info "CMD #{log_prefix} error occurred:"
+				Logger.error e
+				status['error'] = e.message
+			end
+			status['exit'] = true
+			Logger.info "CMD #{log_prefix} thread end."
+			status_lambda.call(status)
+		end
+
+		if use_thread
+			t = Thread.new { exec_lambda.call }
+			return t
+		else
+			exec_lambda.call
+			logthread.join
+			return status
+		end
+	end
+end
