@@ -57,48 +57,13 @@ module SpiderUtil
 	def parse_web(url, encoding = nil, max_ct = -1, opt = {})
 		if encoding.is_a?(Hash)
 			opt = encoding
-			encoding = opt[:encoding]
-			max_ct = opt[:max_ct] || -1
-		else
-			opt[:encoding] ||= encoding
-			opt[:max_ct] ||= max_ct
+			max_ct = opt[:max_ct]
 		end
-		doc = nil
-		ct = 0
-		retry_delay = opt[:retry_delay] || 1
-		abort_exp = opt[:abort_on]
-		while true
-			begin
-				Logger.debug "Fetching #{url}" if opt[:verbose] == true
-				newurl = URI.escape url
-				if newurl != url
-					doc = curl url, opt
-					raise "Cannot download with java curl" if doc == nil
-					if encoding.nil?
-						doc = Nokogiri::HTML(doc)
-					else
-						doc = Nokogiri::HTML(doc, nil, encoding)
-					end
-				else
-					if encoding.nil?
-						doc = Nokogiri::HTML(open(url))
-					else
-						doc = Nokogiri::HTML(open(url), nil, encoding)
-					end
-				end
-				return doc
-			rescue => e
-				Logger.debug "error in parsing [#{url}]:\n#{e.message}"
-				unless abort_exp.nil?
-					abort_exp.each do |reason|
-						raise e if e.message.include?(reason)
-					end
-				end
-				ct += 1
-				raise e if max_ct > 0 && ct >= max_ct
-				sleep retry_delay
-			end
+		if max_ct != nil && max_ct > 0
+			opt[:max_time] ||= (max_ct * 60)
 		end
+		doc = curl url, opt
+		return Nokogiri::HTML(doc)
 	end
 	
 	def curl_native(url, opt={})
@@ -140,7 +105,7 @@ module SpiderUtil
 			result = File.open(file, "rb").read
 			return result
 		end
-		cmd = "curl --output '#{file}'"
+		cmd = "curl --output '#{file}' -L " # -L Follow 301 redirection.
 		cmd += " --fail" unless opt[:allow_http_error]
 		cmd += " --silent" unless opt[:verbose]
 		cmd += " -A '#{agent}'" unless agent.nil?
