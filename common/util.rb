@@ -266,7 +266,7 @@ module ExecUtil
 		# Start a new thread to execute command while collecting realtime logs.
 		logthread = Thread.new do
 			begin
-				Logger.debug "CMD #{log_prefix} Log thread started."
+				Logger.debug "CMD #{log_prefix} Log thread started." if verbose
 				line_ct = 0
 				read.each_line do |line|
 					line = line[0..-2]
@@ -280,7 +280,7 @@ module ExecUtil
 				Logger.info "CMD #{log_prefix} Log: error occurred:"
 				Logger.error e
 			end
-			Logger.debug "CMD #{log_prefix} Log thread end."
+			Logger.debug "CMD #{log_prefix} Log thread end." if verbose
 		end
 
 		exec_lambda = lambda do
