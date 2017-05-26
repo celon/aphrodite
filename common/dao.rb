@@ -451,8 +451,9 @@ class DynamicMysqlDao < MysqlDao
 		end
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
 		if stream
-			error = nil
+			loop_break = true
 			query(sql, :stream => true).each do |row|
+				loop_break = true
 				obj = clazz.new
 				obj.unload_columns = omit_column
 				# puts "set unload_columns #{omit_column.inspect}"
@@ -470,8 +471,9 @@ class DynamicMysqlDao < MysqlDao
 					error = e
 					break
 				end
+				loop_break = false
 			end
-			close
+			close if loop_break
 			return nil
 		else
 			ret = []
