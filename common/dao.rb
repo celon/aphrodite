@@ -91,17 +91,28 @@ class MysqlDao
 		end
 	end
 
-	def dbclient_query(sql)
-		@dbclient.query(sql)
+	def dbclient_query(sql, opt={})
+		if @mysql2_enabled
+			return @dbclient.query(sql, opt)
+		else
+			return @dbclient.query(sql)
+		end
 	end
 
 	def query(sql, log = false)
+		opt = {}
+		if log.is_a? Hash
+			opt = log
+			log = opt[:log] == true
+			opt.delete :log
+		end
+
 		init_dbclient @option if @dbclient.nil?
 		while true
 			begin
 				Logger.debug sql if log || @verbose
 				sleep 0.1 if @debug
-				return dbclient_query(sql)
+				return dbclient_query(sql, opt)
 			rescue => e
 				if e.message == "MySQL server has gone away"
 					Logger.info(e.message + ", retry.")
@@ -131,6 +142,7 @@ class MysqlDao
 			if @dbclient != nil
 				Logger.info "Closing MySQL conn #{@dbuser}@#{@dbhost}" if @verbose
 				@dbclient.close 
+				@dbclient = nil
 			end
 		rescue => e
 			if e.message.include? 'MySQL server has gone away'
@@ -439,7 +451,8 @@ class DynamicMysqlDao < MysqlDao
 		end
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
 		if stream
-			query(sql).each(:streaming => true) do |row|
+			error = nil
+			query(sql, :stream => true).each do |row|
 				obj = clazz.new
 				obj.unload_columns = omit_column
 				# puts "set unload_columns #{omit_column.inspect}"
@@ -449,8 +462,16 @@ class DynamicMysqlDao < MysqlDao
 					val = parse_mysql_val row[index], type
 					obj.mysql_attr_set name, val
 				end
-				yield obj
+				begin
+					yield obj
+				rescue => e
+					Logger.highlight "Error in streaming will cause halt unless dao is closed."
+					Logger.error e
+					error = e
+					break
+				end
 			end
+			close unless error.nil?
 			return nil
 		else
 			ret = []
