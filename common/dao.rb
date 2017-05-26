@@ -471,7 +471,7 @@ class DynamicMysqlDao < MysqlDao
 					break
 				end
 			end
-			close unless error.nil?
+			close
 			return nil
 		else
 			ret = []
