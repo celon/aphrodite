@@ -451,29 +451,40 @@ class DynamicMysqlDao < MysqlDao
 		end
 		sql = "#{sql[0..-3]} from #{table} #{whereClause}"
 		if stream
-			loop_break = true
-			query(sql, :stream => true).each do |row|
-				loop_break = true
-				obj = clazz.new
-				obj.unload_columns = omit_column
-				# puts "set unload_columns #{omit_column.inspect}"
-				obj.__init_from_db = true
-				selected_attrs.each_with_index do |name, index|
-					type = all_attrs[name]
-					val = parse_mysql_val row[index], type
-					obj.mysql_attr_set name, val
-				end
+			show_progress = opt[:show_progress]
+			count = 0
+			error = nil
+			query(sql, stream:true).each do |row|
 				begin
-					yield obj
-				rescue => e
-					Logger.highlight "Error in streaming will cause halt unless dao is closed."
-					Logger.error e
+					if show_progress != nil && count % show_progress == 0
+						APD::Logger.debug "Streaming rows: #{count}"
+					end
+					count += 1
+					obj = clazz.new
+					obj.unload_columns = omit_column
+					# puts "set unload_columns #{omit_column.inspect}"
+					obj.__init_from_db = true
+					selected_attrs.each_with_index do |name, index|
+						type = all_attrs[name]
+						val = parse_mysql_val row[index], type
+						obj.mysql_attr_set name, val
+					end
+					# Stream reading uses a internal thread.
+					# DB client should be closed to cause the thread finishing.
+					ret = yield obj
+					break if ret == :break
+				rescue SystemExit, Interrupt => e
 					error = e
+					Logger.highlight "Interruption detected in db streaming reading..."
+					break
+				rescue => e
+					error = e
+					Logger.highlight "Error occurred in db streaming reading..."
 					break
 				end
-				loop_break = false
 			end
-			close if loop_break
+			close
+			raise error unless error.nil?
 			return nil
 		else
 			ret = []
@@ -491,6 +502,7 @@ class DynamicMysqlDao < MysqlDao
 			end
 			return ret
 		end
+		puts "Stream end"
 	end
 
 	def save_all(array, update = false)
