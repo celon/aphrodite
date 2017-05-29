@@ -9,6 +9,8 @@ gem 'execjs'
 gem 'connection_pool'
 gem 'ruby-progressbar'
 
+gem 'pry-byebug'
+
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
 else
