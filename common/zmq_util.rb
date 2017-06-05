@@ -29,6 +29,16 @@ class ZMQAdapter
 		@zmq_adapter = @zmq_connect_method.call(*@zmq_connect_method_args)
 	end
 
+	def zmq_close
+		zmq_adapter.close
+		@zmq_adapter = nil
+	end
+
+	def zmq_reconnect
+		zmq_close
+		zmq_adapter
+	end
+
 	def start_cli
 		zmq_recv try:true, print:true
 		loop do
@@ -109,11 +119,6 @@ class ZMQAdapter
 				return reply
 			end
 		end
-	end
-
-	def zmq_close
-		zmq_adapter.close
-		@zmq_adapter = nil
 	end
 
 	thread_safe :zmq_send, :zmq_recv, :zmq_send_recv, :zmq_close
