@@ -483,6 +483,7 @@ class DynamicMysqlDao < MysqlDao
 					break
 				end
 			end
+			Logger.debug "Close dao after streaming query."
 			close
 			raise error unless error.nil?
 			return nil

@@ -131,7 +131,11 @@ module SpiderUtil
 		if File.exist?(file)
 			result = File.open(file, "rb").read
 			result = result.force_encoding('utf-8') unless encoding.nil?
-			File.delete(file) if tmp_file_use
+			begin
+				File.delete(file) if tmp_file_use
+			rescue => e
+				Logger.error e
+			end
 		else
 			result = nil
 		end
