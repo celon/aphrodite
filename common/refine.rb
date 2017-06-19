@@ -56,6 +56,11 @@ if defined? using == 'method'
 				end
 				DateTime.strptime(self.to_s, '%s')
 			end
+
+			def to_s_with_delimiter(opt={})
+				delimiter = opt[:delimiter] || ','
+				self.to_s.reverse.gsub(/(\d{3})(?=\d)/, "\\1#{delimiter}").reverse
+			end
 		end
 	
 		refine ::String do
@@ -148,6 +153,11 @@ else
 				end
 				DateTime.strptime(self.to_s, '%s')
 			end
+
+			def to_s_with_delimiter(opt={})
+				delimiter = opt[:delimiter] || ','
+				self.to_s.reverse.gsub(/(\d{3})(?=\d)/, "\\1#{delimiter}").reverse
+			end
 		end
 	else
 		class ::Fixnum
@@ -160,6 +170,11 @@ else
 					return DateTime.strptime(self.to_s, '%Q')
 				end
 				DateTime.strptime(self.to_s, '%s')
+			end
+
+			def to_s_with_delimiter(opt={})
+				delimiter = opt[:delimiter] || ','
+				self.to_s.reverse.gsub(/(\d{3})(?=\d)/, "\\1#{delimiter}").reverse
 			end
 		end
 	end
