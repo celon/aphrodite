@@ -221,8 +221,8 @@ class DynamicMysqlObj
 		self.class.mysql_dao.update self
 	end
 
-	def delete(real = false)
-		self.class.mysql_dao.delete_obj self, real
+	def delete(opt={})
+		self.class.mysql_dao.delete_obj self, opt
 	end
 end
 
@@ -586,24 +586,33 @@ class DynamicMysqlDao < MysqlDao
 		query sql
 	end
 
-	def delete_obj(obj, real = false)
+	def delete_obj(obj, opt={})
 		raise "Only DynamicMysqlObj could be operated." unless obj.is_a? DynamicMysqlObj
-		if real
-			sql = "DELETE FROM #{obj.class.mysql_table} WHERE "
-			attrSql = ""
-			obj.class.mysql_attrs.each do |col, type|
-				val = obj.mysql_attr_get col
-				next if val.nil?
-				attrSql << "#{col}=#{gen_mysql_val(val, type)} AND "
-			end
-			attrSql = attrSql[0..-6]
-			sql << attrSql
-			query sql
-		else
+		# Compatiable for: def delete_obj(obj, real = false)
+		opt = {:mark=>(!opt)} if opt == true || opt == false
+		mark_delete = opt[:mark] == true
+		if mark_delete
 			raise "#{obj.class} do not contain column[deleted]" unless obj.respond_to? :deleted=
 			return Logger.warn "obj is already marked as deleted." if obj.deleted
 			obj.deleted = true
 			save obj, true
+		else
+			sql = "DELETE FROM #{obj.class.mysql_table} WHERE "
+			attrSql = ""
+			pri_attrs = obj.class.mysql_pri_attrs
+			obj.class.mysql_attrs.each do |col, type|
+				val = obj.mysql_attr_get col
+				next if val.nil?
+				next unless pri_attrs.include?(col)
+				attrSql << "#{col}=#{gen_mysql_val(val, type)} AND "
+			end
+			attrSql = attrSql[0..-6]
+			sql << attrSql
+			if opt[:pretend] == true
+				puts sql
+			else
+				query sql
+			end
 		end
 	end
 end
