@@ -261,7 +261,8 @@ class DynamicMysqlDao < MysqlDao
 	def get_class(table)
 		return MYSQL_CLASS_MAP[table] unless MYSQL_CLASS_MAP[table].nil?
 		Logger.debug "Detecting table[#{table}] structure." if @verbose
-		selectSql = "SELECT "
+
+		# Query structure of table.
 		attrs = {}
 		attrs_info = {}
 		lazy_attrs, pri_attrs = {}, []
@@ -272,7 +273,6 @@ class DynamicMysqlDao < MysqlDao
 				:auto_increment => extra.include?('auto_increment')
 			}
 			type = type.split('(')[0]
-			selectSql << "#{name}, "
 			attrs[name] = [type]
 			unless comment.nil? or comment.empty?
 				comment.split(',')[0].split('|').each do |t|
@@ -286,6 +286,28 @@ class DynamicMysqlDao < MysqlDao
 			pri_attrs << name if key == 'PRI'
 			Logger.debug "#{name.ljust(25)} => #{type.ljust(10)} c:#{comment} k:#{key}" if @verbose
 			raise "Unsupported type[#{type}], fitStructure failed." if MYSQL_TYPE_MAP[type.to_sym].nil?
+		end
+
+		# Query structure of support indexes.
+		index_attrs = {}
+		query("SHOW INDEXES FROM #{table}").each do |t, non_unique, index_name, seq_in_index, column_name, collation, cardinality, sub_part, packed, null, index_type, comment, index_comment|
+			index_attrs[index_name] ||= {}
+			index_attrs[index_name][seq_in_index] = column_name
+		end
+		indexes = {}
+		index_attrs.each do |index_name, col_map|
+			indexes[index_name] =	col_map.keys.sort.map { |col_idx| col_map[col_idx] }
+			Logger.debug "IDX: #{index_name.ljust(10)} => #{indexes[index_name]}" if @verbose
+		end
+		# To boost sql performance, overwrite attrs and pri_attrs with index sort.
+		unless indexes['PRIMARY'].nil?
+			pri_attrs = indexes['PRIMARY']
+			puts attrs.inspect
+			sorted_attrs = {}
+			pri_attrs.each { |c| sorted_attrs[c] = attrs[c] }
+			attrs.each { |c, v| sorted_attrs[c] ||= v }
+			attrs = sorted_attrs
+			puts attrs.inspect
 		end
 
 		class_name = DynamicMysqlObj.mysql_tab_to_class_name table
@@ -351,6 +373,7 @@ class DynamicMysqlDao < MysqlDao
 			end
 		end
 
+		clazz.define_singleton_method :mysql_indexes do indexes; end
 		clazz.define_singleton_method :mysql_pri_attrs do pri_attrs; end
 		clazz.define_singleton_method :mysql_lazy_attrs do lazy_attrs; end
 		clazz.define_singleton_method :mysql_attrs do attrs; end
