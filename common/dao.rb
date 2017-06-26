@@ -302,12 +302,10 @@ class DynamicMysqlDao < MysqlDao
 		# To boost sql performance, overwrite attrs and pri_attrs with index sort.
 		unless indexes['PRIMARY'].nil?
 			pri_attrs = indexes['PRIMARY']
-			puts attrs.inspect
 			sorted_attrs = {}
 			pri_attrs.each { |c| sorted_attrs[c] = attrs[c] }
 			attrs.each { |c, v| sorted_attrs[c] ||= v }
 			attrs = sorted_attrs
-			puts attrs.inspect
 		end
 
 		class_name = DynamicMysqlObj.mysql_tab_to_class_name table
