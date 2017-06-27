@@ -480,6 +480,10 @@ class DynamicMysqlDao < MysqlDao
 					if show_progress != nil && count % show_progress == 0
 						APD::Logger.debug "Streaming rows: #{count}"
 					end
+					if opt[:raw_filter] == true
+						valid = yield row
+						next unless valid
+					end
 					count += 1
 					obj = clazz.new
 					obj.unload_columns = omit_column
