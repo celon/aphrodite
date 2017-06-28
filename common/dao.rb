@@ -511,7 +511,7 @@ class DynamicMysqlDao < MysqlDao
 			Logger.debug "Close dao after streaming query."
 			close
 			raise error unless error.nil?
-			return nil
+			return error.nil?
 		else
 			ret = []
 			query(sql).each do |row|
