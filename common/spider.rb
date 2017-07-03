@@ -62,7 +62,13 @@ module SpiderUtil
 		if max_ct != nil && max_ct > 0
 			opt[:max_time] ||= (max_ct * 60)
 		end
-		doc = curl url, opt
+
+		doc = nil
+		if opt[:render] == true
+			doc = render_html url, opt
+		else
+			doc = curl url, opt
+		end
 		return Nokogiri::HTML(doc)
 	end
 	
@@ -149,5 +155,42 @@ module SpiderUtil
 			str = "#{CGI::escape(k)}=#{CGI::escape(v)}&#{str}"
 		end
 		str
+	end
+
+	########################################
+	# Phantomjs task proxy.
+	########################################
+	include ExecUtil
+	def render_html(url, opt={})
+		task_file = "/tmp/phantomjs_#{hash_str(url)}.task"
+		html_file = "/tmp/phantomjs_#{hash_str(url)}.html"
+		task = {
+			'url'			=>	url,
+			'settings'=>	opt[:settings],
+			'html'		=>	opt[:html] || html_file,
+			'timeout'	=>	(opt[:timeout] || 300)*1000,
+			'image'		=>	opt[:image],
+			'switch_device_after_fail' => (opt[:switch_device_after_fail] == true),
+			'action'			=> opt[:action],
+			'action_time' => (opt[:action_time] || 15)
+		}
+		task.keys.each do |k|
+			task.delete k if task[k].nil?
+			opt.delete k
+		end
+		File.open(task_file, 'w') { |f| f.write(task.to_json) }
+		command = "phantomjs #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
+		# Force do not use thread, pass other options to exec_command().
+		opt[:thread] = false
+		status = exec_command(command, opt)
+		raise status unless status['ret'] == true
+		html = File.read(html_file)
+		begin
+			FileUtils.rm task_file
+			FileUtils.rm html_file
+		rescue => e
+			Logger.error e
+		end
+		html
 	end
 end
