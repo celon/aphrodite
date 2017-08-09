@@ -182,12 +182,26 @@ module MQUtil
 				end
 				# Process json in yield, save if needed.
 				success = yield(data, dao) if block_given?
+				could_save = true
+				after_save_lbd = nil
+				# Save-flag is same as success by default.
+				if success.is_a? Array
+					option = success[1] || {}
+					success = success[0]
+					could_save = (option[:save] != false)
+					after_save_lbd = option[:after_save_lbd]
+					Logger.debug "Automatically save action is disabled for this tuple." if could_save == false
+				else
+					could_save = (success != false)
+				end
 				# Redirect to err queue.
 				@mq_channel.default_exchange.publish(body, :routing_key => err_q.name) if success == false && noerr == false
 				# Save to DB only if success != FALSE
-				if format == :json && success != false && clazz != nil
+				if could_save && format == :json && clazz != nil
 					begin
-						dao.save(clazz.new(data), allow_dup_entry)
+						tuple = clazz.new(data)
+						dao.save(tuple, allow_dup_entry)
+						after_save_lbd.call(tuple) unless after_save_lbd.nil?
 					rescue Mysql::ServerError::TruncatedWrongValueForField => e
 						success = false
 					end
