@@ -453,7 +453,7 @@ class DynamicMysqlDao < MysqlDao
 	def query_objs(table, whereClause = "", opt={})
 		whereClause, opt = '', whereClause if whereClause.is_a?(Hash) && opt.empty?
 		omit_column = opt[:omit_column] || []
-		stream = (opt[:streaming] == true)
+		stream = (opt[:streaming] == true) || (opt[:stream] == true)
 		raise "Option stream won't work without mysql2 enabled" if stream && (@mysql2_enabled == false)
 		raise "Option stream won't work without a given block" if stream && (block_given? == false)
 		clazz = get_class table
