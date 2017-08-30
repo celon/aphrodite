@@ -57,7 +57,7 @@ module APD
 	dir = APD_COMMON_PATH
 	# Load refinement and utility before regular files.
 	processed_file = ["#{dir}/bootstrap.rb"]
-	first_batch = ['refine', 'util', 'encode'].map { |f| "#{dir}/#{f}.rb" }
+	first_batch = ['refine', 'util', 'encode', 'spider'].map { |f| "#{dir}/#{f}.rb" }
 	first_batch.each do |f|
  		eval File.read(f), binding, File.basename(f)
 	end

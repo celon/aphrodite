@@ -52,3 +52,13 @@ module LZString
 	end
 end
 
+module ShortURLUtil
+	include EncodeUtil
+	def short_url(url, opt={})
+		return nil if url.nil?
+		raise "Url should be started with http/https" unless url.start_with?('http')
+		encode_url = encode64(url)
+		url = "http://dwz.wailian.work/api.php?url=#{encode_url}&site=sina"
+		response = curl url
+	end
+end
