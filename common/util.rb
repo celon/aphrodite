@@ -255,6 +255,18 @@ module CycleWorker
 	def cycle_work; end
 end
 
+module ProfilingUtil
+	def timing(name)
+		start_time = DateTime.now
+		ret = yield() if block_given?
+		end_time = DateTime.now
+		elapsed_ms = (end_time - start_time)*24*3600*1000
+		elapsed_ms = elapsed_ms.to_f.round(6)
+		Logger.log "timing #{name}: #{elapsed_ms}ms"
+		ret
+	end
+end
+
 module ExecUtil
 	def exec_command(command, opt={})
 		log_prefix = opt[:log_prefix] || ''
