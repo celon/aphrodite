@@ -267,6 +267,26 @@ module ProfilingUtil
 	end
 end
 
+module LogicControl
+	def endless_retry(opt={})
+		begin
+			return yield()
+		rescue => e
+			puts e.message
+			sleep(opt[:sleep] || 0)
+			retry
+		end
+	end
+	def no_complain(opt={})
+		begin
+			return yield()
+		rescue => e
+			puts e.message
+			return nil
+		end
+	end
+end
+
 module ExecUtil
 	def exec_command(command, opt={})
 		log_prefix = opt[:log_prefix] || ''
