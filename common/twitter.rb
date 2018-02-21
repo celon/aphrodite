@@ -25,7 +25,7 @@ module TwitterUtil
 	def twitter_api(method_symbol, *args, &block)
 		begin
  			return _twitter.send(method_symbol, *args, *block)
-		rescue Twitter::Error::RequestTimeout => e
+		rescue Twitter::Error::RequestEntityTooLarge => e
 			retry
 		rescue Twitter::Error::TooManyRequests => e
 			# NOTE: Your process could go to sleep for up to 15 minutes but if you
