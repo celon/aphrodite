@@ -32,6 +32,9 @@ module TwitterUtil
 			# retry any sooner, it will almost certainly fail with the same exception.
 			graphic_sleep(e.rate_limit.reset_in + 1)
 			retry
+		rescue HTTP::ConnectionError => e
+			sleep 5
+			retry
 		rescue => e
 			APD::Logger.highlight "Twitter api error: #{e.message}"
 			if e.message.include?("execution expired")
