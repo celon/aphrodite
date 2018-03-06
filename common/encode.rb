@@ -40,7 +40,7 @@ end
 
 module LZString
 	def lz_context
-		@lz_context ||= ExecJS.compile(File.read("#{APD_COMMON_PATH}/../res/lz-string.min.js"))
+		@lz_context ||= ExecJS.compile(File.read("#{APD_COMMON_PATH}/../res/lz-string-1.3.3-min.js"))
 	end
 
 	def lz_compressToBase64(string)
