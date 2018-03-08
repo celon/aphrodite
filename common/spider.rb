@@ -172,7 +172,8 @@ module SpiderUtil
 			'image'		=>	opt[:image],
 			'switch_device_after_fail' => (opt[:switch_device_after_fail] == true),
 			'action'			=> opt[:action],
-			'action_time' => (opt[:action_time] || 15)
+			'action_time' => (opt[:action_time] || 15),
+			'post_render_wait_time' => (opt[:post_render_wait_time] || 0)
 		}
 		task.keys.each do |k|
 			task.delete k if task[k].nil?
@@ -183,7 +184,7 @@ module SpiderUtil
 		# Force do not use thread, pass other options to exec_command().
 		opt[:thread] = false
 		status = exec_command(command, opt)
-		raise status unless status['ret'] == true
+		raise status.to_json unless status['ret'] == true
 		html = File.read(html_file)
 		begin
 			FileUtils.rm task_file
