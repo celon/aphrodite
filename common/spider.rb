@@ -196,7 +196,7 @@ module SpiderUtil
 			task.delete k if task[k].nil?
 			opt.delete k
 		end
-		File.open(task_file, 'w') { |f| f.write(task.to_json) }
+		File.open(task_file, 'w') { |f| f.write(JSON.pretty_generate(task)) }
 		command = "phantomjs #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
 		# Force do not use thread, pass other options to exec_command().
 		opt[:thread] = false
