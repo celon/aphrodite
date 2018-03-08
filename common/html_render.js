@@ -46,6 +46,7 @@ if (system.args[1] == '-f') {
 		imageFile = taskJson.image;
 		urlSettings = taskJson.settings;
 		actionCode = taskJson.action;
+		postRenderWaitTime = taskJson.post_render_wait_time || 0;
 		if (urlSettings != null) {
 			console.log("Phantomjs page.open settings is load.");
 			if (typeof urlSettings.data === 'string' || urlSettings instanceof String)
@@ -258,6 +259,9 @@ var postLoadAction = function() {
 		taskFinished = false;
 		page.evaluate(actionCode);
 	}
+	if (postRenderWaitTime > 0)
+		log("Post render wait time: " + postRenderWaitTime);
+	waitTime += postRenderWaitTime * 1000;
 	setTimeout(lastAction, waitTime);
 }
 var lastAction = function() {
