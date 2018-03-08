@@ -145,10 +145,6 @@ module MQUtil
 		options[:dao] = 'given' unless dao.nil?
 		Logger.info "Connecting to MQ:#{queue}, options:#{options.to_json}" unless silent
 	
-		unless mq_exists? queue
-			Logger.highlight "MQ[#{queue}] not exist, abort."
-			return -1
-		end
 		@mq_channel.basic_qos(prefetch_num) unless prefetch_num.nil?
 		q = mq_createq queue
 		err_q = mq_createq "#{queue}_err" unless noerr

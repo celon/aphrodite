@@ -18,7 +18,14 @@ module ShortURLUtil
 			url = URI.escape url
 			response = curl url, verbose:true
 			ret = JSON.parse response
-			return ret['shorturl'] unless ret['shorturl'].nil?
+			unless ret['shorturl'].nil?
+				url = ret['shorturl']
+				if opt[:no_protocol] == true
+					url = url[7..-1] if url.start_with?('http://')
+					url = url[8..-1] if url.start_with?('https://')
+				end
+				return url
+			end
 			raise response
 		rescue => e
 			APD::Logger.error e
