@@ -102,7 +102,8 @@ module SpiderUtil
 		header = opt[:header] || {}
 		tmp_file_use = false
 		if file.nil?
-			file = "curl_#{hash_str(url)}_#{Random.rand(10000).to_s.ljust(4)}.html"
+			rand = Random.rand(10000).to_s.rjust(4, '0')
+			file = "curl_#{hash_str(url)}_#{rand}.html"
 			tmp_file_use = true
 		end
 		# Directly return from cache file if use_cache=true
@@ -179,8 +180,9 @@ module SpiderUtil
 	########################################
 	include ExecUtil
 	def render_html(url, opt={})
-		task_file = "/tmp/phantomjs_#{hash_str(url)}.task"
-		html_file = "/tmp/phantomjs_#{hash_str(url)}.html"
+		rand = Random.rand(10000).to_s.rjust(4, '0')
+		task_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.task"
+		html_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.html"
 		task = {
 			'url'			=>	url,
 			'settings'=>	opt[:settings],
