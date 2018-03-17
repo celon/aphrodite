@@ -102,7 +102,7 @@ module SpiderUtil
 		header = opt[:header] || {}
 		tmp_file_use = false
 		if file.nil?
-			file = "curl_#{hash_str(url)}.html"
+			file = "curl_#{hash_str(url)}_#{Random.rand(10000).to_s.ljust(4)}.html"
 			tmp_file_use = true
 		end
 		# Directly return from cache file if use_cache=true
