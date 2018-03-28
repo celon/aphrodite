@@ -199,7 +199,7 @@ module SpiderUtil
 			opt.delete k
 		end
 		File.open(task_file, 'w') { |f| f.write(JSON.pretty_generate(task)) }
-		command = "phantomjs #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
+		command = "phantomjs --ignore-ssl-errors=true #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
 		# Force do not use thread, pass other options to exec_command().
 		opt[:thread] = false
 		status = exec_command(command, opt)
