@@ -297,7 +297,7 @@ module ExecUtil
 		status_lambda = opt[:status_cb] || lambda {|l| }
 		read, io = IO.pipe
 
-		Logger.info "Prepare to execute command: #{command}"
+		Logger.info "Exec: #{command}"
 
 		# Start a new thread to execute command while collecting realtime logs.
 		logthread = Thread.new do
@@ -321,7 +321,7 @@ module ExecUtil
 
 		exec_lambda = lambda do
 			begin
-				Logger.info "CMD #{log_prefix} thread started."
+				Logger.info "CMD #{log_prefix} thread started." if use_thread
 				ret = system(command, out:io, err:io)
 				status['ret'] = ret
 				io.close
@@ -331,7 +331,7 @@ module ExecUtil
 				status['error'] = e.message
 			end
 			status['exit'] = true
-			Logger.info "CMD #{log_prefix} thread end."
+			Logger.info "CMD #{log_prefix} thread end." if use_thread
 			status_lambda.call(status)
 		end
 
