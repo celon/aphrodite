@@ -268,14 +268,10 @@ module ProfilingUtil
 end
 
 module LogicControl
-	def endless_retry(opt={})
-		begin
-			return yield()
-		rescue => e
-			puts e.message
-			sleep(opt[:sleep] || 0)
-			retry
-		end
+	def endless_retry(opt={}, &block)
+		opt_c = opt.clone
+		opt_c[:retry_ct] = 0
+		limit_retry(opt, &block)
 	end
 	def no_complain(opt={})
 		begin
@@ -283,6 +279,21 @@ module LogicControl
 		rescue => e
 			puts e.message
 			return nil
+		end
+	end
+	def limit_retry(opt={})
+		max_ct = opt[:retry_ct] || 3
+		sleep_s = opt[:sleep] || 0
+		ct = 0
+		begin
+			ct += 1
+			return yield()
+		rescue => e
+			raise e if max_ct > 0 && ct > max_ct
+			puts e.message
+			puts "Retry #{ct+1}/#{max_ct} after #{sleep_s}s"
+			sleep(sleep_s)
+			retry
 		end
 	end
 end

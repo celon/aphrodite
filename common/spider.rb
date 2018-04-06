@@ -179,15 +179,22 @@ module SpiderUtil
 	# Phantomjs task proxy.
 	########################################
 	include ExecUtil
+	include LogicControl
 	def render_html(url, opt={})
+		limit_retry(retry_ct:opt[:retry_ct]) do
+			render_html_int(url, opt)
+		end
+	end
+	def render_html_int(url, opt={})
 		rand = Random.rand(10000).to_s.rjust(4, '0')
 		task_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.task"
 		html_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.html"
+		timeout = opt[:timeout] || 300
 		task = {
 			'url'			=>	url,
 			'settings'=>	opt[:settings],
 			'html'		=>	opt[:html] || html_file,
-			'timeout'	=>	(opt[:timeout] || 300)*1000,
+			'timeout'	=>	(timeout/2)*1000,
 			'image'		=>	opt[:image],
 			'switch_device_after_fail' => (opt[:switch_device_after_fail] == true),
 			'action'			=> opt[:action],
@@ -199,7 +206,7 @@ module SpiderUtil
 			opt.delete k
 		end
 		File.open(task_file, 'w') { |f| f.write(JSON.pretty_generate(task)) }
-		command = "phantomjs --ignore-ssl-errors=true #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
+		command = "timeout #{timeout}s phantomjs --ignore-ssl-errors=true #{APD_COMMON_PATH}/html_render.js -f #{task_file}"
 		# Force do not use thread, pass other options to exec_command().
 		opt[:thread] = false
 		status = exec_command(command, opt)
