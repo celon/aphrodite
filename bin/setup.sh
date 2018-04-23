@@ -32,7 +32,7 @@ rvm use $rubyver || \
 	  rvm use $rubyver ) || \
 	  	abort 'ruby env failure.'
 
-echo "Test if bootstrap could be load."
+echo "Test if APHRODITE bootstrap could be load."
 ruby $APD_DIR/common/bootstrap.rb
 if [ $? -eq 0 ]; then
 	exit
@@ -55,11 +55,11 @@ do
 	fi
 done
 
-echo "Test if bootstrap could be load again."
+echo "Test if APHRODITE bootstrap could be load again."
 ruby $APD_DIR/common/bootstrap.rb
 if [ $? -eq 0 ]; then
 	exit
 fi
 abort 'ruby gem lib failure.'
 
-echo "Environment OK"
+echo "APHRODITE Environment OK"
