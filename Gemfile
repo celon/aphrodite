@@ -9,6 +9,7 @@ gem 'execjs'
 gem 'connection_pool'
 gem 'ruby-progressbar'
 gem 'concurrent-ruby', require: 'concurrent'
+gem 'mail'
 
 gem 'pry-byebug'
 

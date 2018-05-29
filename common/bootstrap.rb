@@ -50,6 +50,10 @@ require 'json'
 require 'base64'
 require 'execjs'
 require 'twitter'
+require 'mail'
+require 'optparse'
+require 'optparse/time'
+require 'ostruct'
 
 # Load all script in given namespace.
 module APD
