@@ -60,7 +60,7 @@ module APD
 	APD_COMMON_PATH ||= File.dirname(File.absolute_path(__FILE__))
 	dir = APD_COMMON_PATH
 	# Load refinement and utility before regular files.
-	processed_file = ["#{dir}/bootstrap.rb"]
+	processed_file = ["#{dir}/../bin/mail_task.rb", "#{dir}/bootstrap.rb"]
 	first_batch = ['refine', 'util', 'encode', 'spider'].map { |f| "#{dir}/#{f}.rb" }
 	first_batch.each do |f|
  		eval File.read(f), binding, File.basename(f)

@@ -1,4 +1,7 @@
-require_relative '../common/bootstrap'
+require 'mail'
+require 'optparse'
+require 'optparse/time'
+require 'ostruct'
 
 class MailTask
 	def self.email_plain(receiver, subject, content, bcc = nil, opt={})
@@ -6,7 +9,7 @@ class MailTask
 		author = (opt[:from] || "Automator <automator@#{hostname}>")
 		content ||= ""
 		content += File.read(opt[:html_file]) unless opt[:html_file].nil?
-		APD::Logger.info "email_plain #{author} -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
+		puts "email_plain #{author} -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
 		content = 'NO CONTENT' if content.empty?
 		Mail.deliver do
 			to      receiver
