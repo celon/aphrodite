@@ -2,12 +2,15 @@ require_relative '../common/bootstrap'
 
 class MailTask
 	def self.email_plain(receiver, subject, content, bcc = nil, opt={})
+		hostname = ENV['HOSTNAME'] || abort("No ENV variable HOSTNAME")
+		author = (opt[:from] || "Automator <automator@#{hostname}>")
 		content ||= ""
 		content += File.read(opt[:html_file]) unless opt[:html_file].nil?
-		APD::Logger.info "email_plain -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
+		APD::Logger.info "email_plain #{author} -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
+		content = 'NO CONTENT' if content.empty?
 		Mail.deliver do
 			to      receiver
-			from    (opt[:from] || 'Automator <automator@noreply.com>')
+			from    author
 			subject subject
 			html_part do
 				content_type 'text/html; charset=UTF-8'
@@ -65,7 +68,6 @@ if __FILE__ == $0
 			options[:attachment] = v
 		end
 	end.parse!
-	puts options
 
 	abort "Subject missed, abort sending email" if options[:subject].nil?
 	abort "Recipients missed, abort sending email" if options[:recipients].nil?
