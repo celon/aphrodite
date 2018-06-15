@@ -96,7 +96,7 @@ module SpiderUtil
 	def curl(url, opt={})
 		file = opt[:file]
 		use_cache = opt[:use_cache] == true
-		agent = opt[:agent] || 'Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/31.0'
+		agent = opt[:agent]
 		retry_delay = opt[:retry_delay] || 1
 		encoding = opt[:encoding]
 		header = opt[:header] || {}
