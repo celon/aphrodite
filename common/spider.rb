@@ -96,7 +96,7 @@ module SpiderUtil
 	def curl(url, opt={})
 		file = opt[:file]
 		use_cache = opt[:use_cache] == true
-		agent = opt[:agent]
+		agent = opt[:agent] || 'Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/31.0'
 		retry_delay = opt[:retry_delay] || 1
 		encoding = opt[:encoding]
 		header = opt[:header] || {}
@@ -161,7 +161,7 @@ module SpiderUtil
 	def href_url(homeurl, href)
 		return nil if href.nil?
 		return href if (href =~ /^[a-zA-Z]*\:\/\// ) == 0
-		raise "#{homeurl} is not a URI" unless (homeurl =~ /^[a-zA-Z]**\:\/\// ) == 0
+		raise "#{homeurl} is not a URI" unless (homeurl =~ /^[a-zA-Z]*\:\/\// ) == 0
 		protocol = homeurl.split('://')[0]
 		segs = homeurl.split('/')
 		base_domain = segs[0..2].join('/')
