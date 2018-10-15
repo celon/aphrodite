@@ -210,7 +210,7 @@ module SpiderUtil
 		# Force do not use thread, pass other options to exec_command().
 		opt[:thread] = false
 		status = exec_command(command, opt)
-		raise status.to_json unless status['ret'] == true
+		raise JSON.pretty_generate(status) unless status['ret'] == true
 		html = File.read(html_file)
 		begin
 			FileUtils.rm task_file

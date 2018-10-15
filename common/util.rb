@@ -303,12 +303,14 @@ module ExecUtil
 		log_prefix = opt[:log_prefix] || ''
 		use_thread = opt[:thread] == true
 		verbose = opt[:verbose] == true
+		quiet = opt[:quiet] == true
+		verbose = false if quiet
 		status = opt[:status] || {}
 		status['output'] ||= []
 		status_lambda = opt[:status_cb] || lambda {|l| }
 		read, io = IO.pipe
 
-		Logger.info "Exec: #{command}"
+		Logger.info "Exec: #{command}" unless quiet
 
 		# Start a new thread to execute command while collecting realtime logs.
 		logthread = Thread.new do
@@ -324,7 +326,7 @@ module ExecUtil
 					status_lambda.call(status)
 				end
 			rescue => e
-				Logger.info "CMD #{log_prefix} Log: error occurred:"
+				Logger.info "CMD #{log_prefix} Log: error occurred:" unless quiet
 				Logger.error e
 			end
 			Logger.debug "CMD #{log_prefix} Log thread end." if verbose
@@ -337,7 +339,7 @@ module ExecUtil
 				status['ret'] = ret
 				io.close
 			rescue => e
-				Logger.info "CMD #{log_prefix} error occurred:"
+				Logger.info "CMD #{log_prefix} error occurred:" unless quiet
 				Logger.error e
 				status['error'] = e.message
 			end
