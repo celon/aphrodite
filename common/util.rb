@@ -256,14 +256,94 @@ module CycleWorker
 end
 
 module ProfilingUtil
-	def timing(name)
-		start_time = DateTime.now
+	def profile_on
+		@_apd_profiling_status = true
+	end
+
+	def profile_off
+		@_apd_profiling_status = false
+		profile_record_clear()
+	end
+
+	def profile_timing(name)
+		if @_apd_profiling_status != true
+			return yield() if block_given?
+			return
+		end
+		start_time = Time.new.to_f
 		ret = yield() if block_given?
-		end_time = DateTime.now
-		elapsed_ms = (end_time - start_time)*24*3600*1000
-		elapsed_ms = elapsed_ms.to_f.round(6)
-		Logger.log "timing #{name}: #{elapsed_ms}ms"
+		end_time = Time.new.to_f
+		elapsed_s = (end_time - start_time)
+		Logger.log "timing #{name}: #{elapsed_s}"
 		ret
+	end
+
+	def profile_record(name)
+		if @_apd_profiling_status != true
+			return yield() if block_given?
+			return
+		end
+		name = name.to_s
+		@_apd_profiling_data ||= {}
+		@_apd_profiling_data[name] ||= 0
+		start_time = Time.new.to_f
+		ret = yield() if block_given?
+		end_time = Time.new.to_f
+		elapsed_s = (end_time - start_time)
+		if @_apd_profiling_data[name] != nil # In case of cache cleared.
+			@_apd_profiling_data[name] += elapsed_s
+		end
+		ret
+	end
+
+	def profile_record_clear
+		@_apd_profiling_data = {}
+		@_apd_profiling_cache = {}
+	end
+
+	def profile_record_start(name)
+		return if @_apd_profiling_status != true
+		name = name.to_s
+		@_apd_profiling_cache ||= {}
+		@_apd_profiling_cache[name] ||= Time.new.to_f
+	end
+
+	def profile_record_end(name, opt={})
+		return if @_apd_profiling_status != true
+		name = name.to_s
+		@_apd_profiling_data ||= {}
+		@_apd_profiling_cache ||= {}
+		if opt[:prefix] == true
+			end_time = Time.new.to_f
+			@_apd_profiling_cache.keys.each do |k|
+				next unless k.start_with?(name)
+				start_time = @_apd_profiling_cache.delete(k)
+				next if start_time.nil?
+				elapsed_s = (end_time - start_time)
+				@_apd_profiling_data[k] ||= 0
+				@_apd_profiling_data[k] += elapsed_s
+			end
+			return
+		end
+		start_time = @_apd_profiling_cache.delete(name)
+		if opt[:allow_null] == false
+			raise "Profiling #{name} is not started yet" if start_time.nil?
+		else
+			return if start_time.nil?
+		end
+		end_time = Time.new.to_f
+		elapsed_s = (end_time - start_time)
+		@_apd_profiling_data[name] ||= 0
+		@_apd_profiling_data[name] += elapsed_s
+	end
+
+	def profile_print
+		@_apd_profiling_data ||= {}
+		data = @_apd_profiling_data.to_a
+		puts "---- #{data.size} profiling entries ----"
+		data.sort_by { |kv| kv[1] }.reverse.each do |name, time|
+			puts "#{name.ljust(32)} #{time.round(3)}"
+		end
 	end
 end
 
