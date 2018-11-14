@@ -48,7 +48,11 @@ class MailTask
 		mg_client = Mailgun::Client.new mailgun_key
 		mb_obj = Mailgun::MessageBuilder.new()
 		# Define the from address
-		mb_obj.from("automator@#{mailgun_site}")
+		if opt[:shown_name].nil?
+			mb_obj.from("automator@#{mailgun_site}")
+		else
+			mb_obj.from("automator@#{mailgun_site}", {"first"=>opt[:shown_name]})
+		end
 		# Define a to recipient
 		receiver.split(',').each do |addr|
 			mb_obj.add_recipient(:to, addr.strip)
@@ -62,7 +66,10 @@ class MailTask
 		# Define the subject
 		mb_obj.subject(subject || '')
 		mb_obj.set_text_body(content) unless content.nil?
-		mb_obj.body_html(File.read(opt[:html_file])) unless opt[:html_file].nil?
+		html = nil
+		html = File.read(opt[:html_file]) unless opt[:html_file].nil?
+		html = opt[:html] unless opt[:html].nil?
+		mb_obj.body_html(html) unless html.nil?
 		unless opt[:file].nil?
 			files = opt[:file]
 			if files.is_a?(String)
@@ -82,7 +89,7 @@ class MailTask
 				mb_obj.add_attachment f, File.basename(f)
 			end
 		end
-		puts "email_plain -> #{receiver} | #{subject} | content:#{(content||'').size} attachment:#{opt[:file] != nil}"
+		puts "email -> #{receiver} | #{subject} | content:#{(content||'').size} | html:#{(html||'').size} attachment:#{opt[:file] != nil}"
 
 		# Schedule message in the future
 		# mb_obj.set_delivery_time("tomorrow 8:00AM", "PST");
