@@ -10,6 +10,7 @@ gem 'connection_pool'
 gem 'ruby-progressbar'
 gem 'concurrent-ruby', require: 'concurrent'
 gem 'mail'
+gem 'mailgun-ruby'
 
 gem 'pry-byebug'
 
