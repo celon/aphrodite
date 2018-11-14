@@ -48,10 +48,15 @@ class MailTask
 		mg_client = Mailgun::Client.new mailgun_key
 		mb_obj = Mailgun::MessageBuilder.new()
 		# Define the from address
-		mb_obj.from("automator@#{mailgun_site}", {"first"=>"Ruby", "last" => "SDK"});  
+		mb_obj.from("automator@#{mailgun_site}")
 		# Define a to recipient
 		receiver.split(',').each do |addr|
 			mb_obj.add_recipient(:to, addr.strip)
+		end
+		if bcc != nil
+			bcc.split(',').each do |addr|
+				mb_obj.add_recipient(:bcc, addr.strip)
+			end
 		end
 		# mb_obj.add_recipient(:cc, cc_addr)
 		# Define the subject
