@@ -4,7 +4,7 @@ require 'optparse/time'
 require 'ostruct'
 
 class MailTask
-	def self.email_plain(receiver, subject, content, bcc = nil, opt={})
+	def self.email_plain(receiver, subject, content='EMPTY', bcc = nil, opt={})
 		hostname = ENV['HOSTNAME'] || abort("No ENV variable HOSTNAME")
 		author = (opt[:from] || "Automator <automator@#{hostname}>")
 		content ||= ""
@@ -41,7 +41,7 @@ class MailTask
 		end
 	end
 
-	def self.email_mailgun(receiver, subject, content, bcc = nil, opt={})
+	def self.email_mailgun(receiver, subject, content='EMPTY', bcc = nil, opt={})
 		require 'mailgun'
 		mailgun_key = ENV['MAILGUN_KEY'] || abort("No variable MAILGUN_KEY")
 		mailgun_site = ENV['MAILGUN_SITE'] || abort("No variable MAILGUN_SITE")
