@@ -65,7 +65,6 @@ class MailTask
 		# mb_obj.add_recipient(:cc, cc_addr)
 		# Define the subject
 		mb_obj.subject(subject || '')
-		mb_obj.set_text_body(content) unless content.nil?
 		html = nil
 		html = File.read(opt[:html_file]) unless opt[:html_file].nil?
 		html = opt[:html] unless opt[:html].nil?
@@ -89,6 +88,9 @@ class MailTask
 				mb_obj.add_attachment f, File.basename(f)
 			end
 		end
+		# Need at least one of 'text' or 'html' parameters specified
+		content = 'NO CONTENT' if html.nil? && content.nil?
+		mb_obj.set_text_body(content) unless content.nil?
 		puts "email -> #{receiver} | #{subject} | content:#{(content||'').size} | html:#{(html||'').size} attachment:#{opt[:file] != nil}"
 
 		# Schedule message in the future
