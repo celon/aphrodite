@@ -32,6 +32,7 @@ var taskUrl = system.args[1];
 var outputFile = system.args[2];
 var timeout = system.args[3];
 var imageFile = system.args[4];
+var loadImage = null;
 var urlSettings = null;
 var tryDifferentDeviceAfterFail = true;
 var actionCode = null;
@@ -44,6 +45,7 @@ if (system.args[1] == '-f') {
 		outputFile = taskJson.html;
 		timeout = taskJson.timeout;
 		imageFile = taskJson.image;
+		loadImage = taskJson.loadimage;
 		urlSettings = taskJson.settings;
 		actionCode = taskJson.action;
 		postRenderWaitTime = taskJson.post_render_wait_time || 0;
@@ -90,9 +92,14 @@ log("Timeout: " + timeout);
 var taskDomain = getLocation(taskUrl).hostname.split('.');
 taskDomain = taskDomain[taskDomain.length - 2] + '.' + taskDomain[taskDomain.length - 1];
 log("Task domain: " + taskDomain);
-if (imageFile == null)
+if (loadImage == false)
+	page.settings.loadImages = false;
+else if (imageFile == null)
 	page.settings.loadImages = false;
 else
+	page.settings.loadImages = true;
+
+if (imageFile != null)
 	log("Save image: " + imageFile);
 
 // Init state.

@@ -196,6 +196,7 @@ module SpiderUtil
 			'html'		=>	opt[:html] || html_file,
 			'timeout'	=>	(timeout/2)*1000,
 			'image'		=>	opt[:image],
+			'loadimage'		=>	opt[:loadimage],
 			'switch_device_after_fail' => (opt[:switch_device_after_fail] == true),
 			'action'			=> opt[:action],
 			'action_time' => (opt[:action_time] || 15),
