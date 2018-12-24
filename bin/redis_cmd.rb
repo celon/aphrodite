@@ -5,6 +5,9 @@ include APD::EncodeUtil
 def redis_db
 	0
 end
+REDIS_HOST = ENV['REDIS_HOST'] || abort("REDIS_HOST is not in ENV")
+REDIS_PORT = (ENV['REDIS_PORT'] || abort("REDIS_PORT is not in ENV")).to_i
+REDIS_PSWD = ENV['REDIS_PSWD'] || abort("REDIS_PSWD is not in ENV")
 
 ######################### CONF ###########################
 options = OpenStruct.new
