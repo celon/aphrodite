@@ -18,5 +18,5 @@ if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
 else
 	gem 'bunny', '>= 2.6.3'
-	gem 'mysql2'
+	gem 'mysql2', '~>0.4.0'
 end
