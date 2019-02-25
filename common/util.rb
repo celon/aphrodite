@@ -17,10 +17,10 @@ module LockUtil
 					# method -> method_without_threadsafe
 					old_method_sym = "#{method}_without_threadsafe".to_sym
 					if clazz.method_defined? old_method_sym
-# 					puts "#{clazz}: #{old_method_sym} alread exists, skip wrap".red
+# 					puts "#{clazz}: #{old_method_sym} alread exists, skip wrapping".red
 					else
 						alias_method old_method_sym, method
-# 					puts "#{clazz}: #{method} -> #{method}_without_threadsafe".red
+# 					puts "#{clazz}: #{method} -> #{old_method_sym}".red
 					end
 					clazz.class_eval do
 						# add instance methods: __get_lock4_(method_name)
@@ -51,35 +51,56 @@ module LockUtil
 	end
 end
 
-module FileUtil
-	def tail(file, opt={})
-		verbose = opt[:verbose] == true
-		sleep_interval = opt[:interval] || 0.1
-	
-		f = nil
-		begin
-			f = File.open(file,"r")
-			# seek to the end of the most recent entry
-	# 		f.seek(0,IO::SEEK_END)
-		rescue Errno::ENOENT
-			sleep sleep_interval
-			retry
-		end
-	
-		ct = 0
-		loop do
-			select([f])
-			line = f.gets
-			if line.nil? || line.size == 0
-				sleep sleep_interval
-				next
+class ExpireResultFailed < Exception
+end
+module ExpireResult
+	# Add feature DSL: expire_every T, query_method
+	# The result will be stored and expired every T seconds.
+	def self.included(clazz)
+		super
+		clazz.singleton_class.class_eval do
+			define_method(:expire_every) do |*args|
+				raise "DSL expire_every usage: T(seconds), method_name" unless args.size == 2
+				expire_t = args[0].to_f
+				method = args[1].to_sym
+				raise "DSL expire_every usage: T(seconds), method_name" unless expire_t > 0
+				old_method_sym = "__#{method}_without_expire_warpping".to_sym
+				if clazz.method_defined? old_method_sym
+#  					puts "#{clazz}: #{old_method_sym} alread exists, skip wrapping".red
+				else
+					alias_method old_method_sym, method
+#  					puts "#{clazz}: #{method} -> #{old_method_sym}".red
+				end
+				clazz.class_eval do
+					# Overwrite instance method:
+					# 	if @__method_result_time not expired
+					# 		return @__method_result
+					# 	ret = __method__without_expire_wrapping()
+					#   @__method_result = ret
+					#   @__method_result_time = now
+					define_method(method) do |*args, &block|
+						r_key = "@__#{method}_result".to_sym
+						t_key = "@__#{method}_result_time".to_sym
+						last_result = instance_variable_get(r_key)
+						last_time = instance_variable_get(t_key)
+						now = DateTime.now
+						if last_time != nil && now - last_time < expire_t/(24.0*3600.0)
+							return last_result
+						end
+						ret = nil
+						begin
+							ret = send old_method_sym, *args, &block
+						rescue ExpireResultFailed => e
+							puts "Error in fetching new ExpireResult, use last expired result."
+							return last_result
+						end
+						instance_variable_set(r_key, ret)
+						instance_variable_set(t_key, DateTime.now)
+						puts "Cache #{method} result for #{expire_t} seconds."
+						return ret
+					end
+				end
 			end
-			puts "#{ct.to_s.ljust(5)}: #{line}" if verbose
-			if block_given?
-				ret = yield line.strip
-				break if ret == false
-			end
-			ct += 1
 		end
 	end
 end
@@ -208,6 +229,39 @@ end
 #################################################
 # Utility modules below
 #################################################
+
+module FileUtil
+	def tail(file, opt={})
+		verbose = opt[:verbose] == true
+		sleep_interval = opt[:interval] || 0.1
+	
+		f = nil
+		begin
+			f = File.open(file,"r")
+			# seek to the end of the most recent entry
+	# 		f.seek(0,IO::SEEK_END)
+		rescue Errno::ENOENT
+			sleep sleep_interval
+			retry
+		end
+	
+		ct = 0
+		loop do
+			select([f])
+			line = f.gets
+			if line.nil? || line.size == 0
+				sleep sleep_interval
+				next
+			end
+			puts "#{ct.to_s.ljust(5)}: #{line}" if verbose
+			if block_given?
+				ret = yield line.strip
+				break if ret == false
+			end
+			ct += 1
+		end
+	end
+end
 
 module SleepUtil
 	def graphic_sleep(time)
