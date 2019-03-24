@@ -115,6 +115,25 @@ class TestUtil < TestBoard
 
 	def test_cache_util
 		assert (@instance.redis != nil)
+		# Redlock testing.
+		lock_manager = @instance.redis_lock_manager
+		first_try_lock_info = lock_manager.lock("resource_key", 2000)
+		sleep 0.3
+		second_try_lock_info = lock_manager.lock("resource_key", 2000)
+		assert(first_try_lock_info != false)
+		assert(first_try_lock_info[:validity] > 0)
+		assert(first_try_lock_info[:validity] < 2000)
+		assert(second_try_lock_info == false)
+		lock_manager.unlock(first_try_lock_info)
+	  first_try_lock_info = lock_manager.lock("resource_key", 2000)
+		assert(first_try_lock_info != false)
+		assert(first_try_lock_info[:validity] > 0)
+		assert(first_try_lock_info[:validity] < 2000)
+		sleep 2
+	  first_try_lock_info = lock_manager.lock("resource_key", 2000)
+		assert(first_try_lock_info != false)
+		assert(first_try_lock_info[:validity] > 0)
+		assert(first_try_lock_info[:validity] < 2000)
 	end
 
 	def test_mq_util

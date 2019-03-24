@@ -54,6 +54,7 @@ require 'mail'
 require 'optparse'
 require 'optparse/time'
 require 'ostruct'
+require 'redlock'
 
 # Load all script in given namespace.
 module APD

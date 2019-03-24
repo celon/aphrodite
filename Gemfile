@@ -11,8 +11,7 @@ gem 'ruby-progressbar'
 gem 'concurrent-ruby', require: 'concurrent'
 gem 'mail'
 gem 'mailgun-ruby'
-
-gem 'pry-byebug'
+gem 'redlock'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
