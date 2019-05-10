@@ -73,30 +73,36 @@ module ExpireResult
 				end
 				clazz.class_eval do
 					# Overwrite instance method:
-					# 	if @__method_result_time not expired
-					# 		return @__method_result
+					# 	if @__method_result_time[args] not expired
+					# 		return @__method_result[args]
 					# 	ret = __method__without_expire_wrapping()
-					#   @__method_result = ret
-					#   @__method_result_time = now
-					define_method(method) do |*args, &block|
+					#   @__method_result[args] = ret
+					#   @__method_result_time[args] = now
+					define_method(method) do |*m_args, &block|
 						r_key = "@__#{method}_result".to_sym
 						t_key = "@__#{method}_result_time".to_sym
-						last_result = instance_variable_get(r_key)
-						last_time = instance_variable_get(t_key)
+						# m_args will never be nil, it would be [] if no argument given.
+						# But this might be changed in side old_method_sym(), so make a shallow clone first.
+						args_key = m_args.clone
+						# Initial result records.
+						instance_variable_set(r_key, {}) if instance_variable_get(r_key).nil?
+						instance_variable_set(t_key, {}) if instance_variable_get(t_key).nil?
+						last_time = instance_variable_get(t_key)[args_key]
+						last_result = instance_variable_get(r_key)[args_key]
 						now = DateTime.now
 						if last_time != nil && now - last_time < expire_t/(24.0*3600.0)
 							return last_result
 						end
 						ret = nil
 						begin
-							ret = send old_method_sym, *args, &block
+							ret = send old_method_sym, *m_args, &block
 						rescue ExpireResultFailed => e
-							puts "Error in fetching new ExpireResult, use last expired result."
+							puts "Error in fetching new ExpireResult, use last expired result for #{args_key}"
 							return last_result
 						end
-						instance_variable_set(r_key, ret)
-						instance_variable_set(t_key, DateTime.now)
-						puts "Cache #{method} result for #{expire_t} seconds."
+						instance_variable_get(r_key)[args_key] = ret
+						instance_variable_get(t_key)[args_key] = DateTime.now
+						puts "Cache #{method} result for #{args_key} in #{expire_t} seconds."
 						return ret
 					end
 				end
@@ -415,7 +421,7 @@ module LogicControl
 		begin
 			return yield()
 		rescue => e
-			puts e.message
+			puts e.message, level:2
 			return nil
 		end
 	end
@@ -428,7 +434,7 @@ module LogicControl
 			return yield()
 		rescue => e
 			raise e if max_ct > 0 && ct > max_ct
-			puts e.message
+			puts e.message, level:2
 			puts "Retry #{ct+1}/#{max_ct} after #{sleep_s}s"
 			sleep(sleep_s)
 			retry
