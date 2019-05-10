@@ -56,15 +56,15 @@ class Logger
 			return info
 		end
 	
-		@@maxHeadLen = 30
+		@@_apd_logger_max_head_len = 30
 		def log_int(o, additional_stack=0, opt={})
 			additional_stack ||= 0
 			o = o.to_s
 			head = caller(2 + additional_stack).first.split(":in")[0]
 			head = head.split('/').last
-			head = "#{Time.now.strftime("%m/%d-%H:%M:%S.%L")} [#{head}]:"
-			@@maxHeadLen = head.size if head.size > @@maxHeadLen
-			msg = "\r#{head.ljust(@@maxHeadLen)}#{o}\n"
+			head = "#{Time.now.strftime("%m/%d-%H:%M:%S.%L")} #{head} "
+			@@_apd_logger_max_head_len = head.size if head.size > @@_apd_logger_max_head_len
+			msg = "\r#{head.ljust(@@_apd_logger_max_head_len)}#{o}\n"
 			begin
 				msg = msg.send(opt[:color]) unless opt[:color].nil?
 			rescue => e
@@ -79,7 +79,7 @@ end
 Kernel.module_eval do
 	alias :original_puts :puts
 	def puts(o, opt={})
-		opt = {:info => false } if opt == false
+		opt = { :info => false } if opt == false
 		additionalInfo = opt[:info] != false
 		level = opt[:level] || 1
 		Logger.log(o, level) if additionalInfo
