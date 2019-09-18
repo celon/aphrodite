@@ -79,8 +79,8 @@ module ExpireResult
 					#   @__method_result[args] = ret
 					#   @__method_result_time[args] = now
 					define_method(method) do |*m_args, &block|
-						r_key = "@__#{method}_result".to_sym
-						t_key = "@__#{method}_result_time".to_sym
+						r_key = "@__#{method}_result".gsub('?', '_qmark_').to_sym
+						t_key = "@__#{method}_result_time".gsub('?', '_qmark_').to_sym
 						# m_args will never be nil, it would be [] if no argument given.
 						# But this might be changed in side old_method_sym(), so make a shallow clone first.
 						args_key = m_args.clone
@@ -97,7 +97,7 @@ module ExpireResult
 						begin
 							ret = send old_method_sym, *m_args, &block
 						rescue ExpireResultFailed => e
-							puts "Error in fetching new ExpireResult, use last expired result for #{args_key}"
+							puts "ExpireResultFailed, use last result: #{method}(#{args_key})"
 							return last_result
 						end
 						instance_variable_get(r_key)[args_key] = ret
