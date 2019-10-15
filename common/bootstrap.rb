@@ -10,7 +10,7 @@ module APD
 	def self.require_try(lib)
 		begin
 			require lib
-		rescue LoadError => e
+		rescue RuntimeError, LoadError => e
 			puts "Fail to load [#{lib}], skip."
 		end
 	end
@@ -23,7 +23,7 @@ module APD
 				require lib
 				success = true
 				break
-			rescue LoadError => e
+			rescue RuntimeError, LoadError => e
 				error = e
 				puts "Fail to load [#{lib}], try optional choice."
 				next
