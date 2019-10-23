@@ -10,7 +10,7 @@ module APD
 	def self.require_try(lib)
 		begin
 			require lib
-		rescue RuntimeError, LoadError => e
+		rescue
 			puts "Fail to load [#{lib}], skip."
 		end
 	end
@@ -36,6 +36,7 @@ target_module = APD
 
 target_module.require_anyof 'bunny', 'march_hare'
 target_module.require_try 'mysql2'
+target_module.require_try 'execjs'
 
 require 'cgi'
 require 'uri'
@@ -48,7 +49,6 @@ require 'logger'
 require 'colorize'
 require 'json'
 require 'base64'
-require 'execjs'
 require 'twitter'
 require 'mail'
 require 'optparse'
