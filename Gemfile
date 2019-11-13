@@ -17,7 +17,7 @@ if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
 elsif RUBY_ENGINE == 'truffleruby'
 	gem 'bunny', '>= 2.6.3'
-	; # Could not compile mysql2 on ubuntu 1804
+	# Could not compile mysql2 on ubuntu 1804
 else
 	gem 'bunny', '>= 2.6.3'
 	gem 'mysql2', '~>0.4.0'

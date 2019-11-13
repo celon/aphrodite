@@ -35,8 +35,11 @@ end
 target_module = APD
 
 target_module.require_anyof 'bunny', 'march_hare'
-target_module.require_try 'mysql2'
 target_module.require_try 'execjs'
+if RUBY_ENGINE != 'truffleruby'
+	# Could not compile mysql2 on ubuntu 1804
+	target_module.require_try 'mysql2'
+end
 
 require 'cgi'
 require 'uri'
