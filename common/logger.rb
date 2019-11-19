@@ -56,7 +56,7 @@ class Logger
 			return info
 		end
 	
-		@@_apd_logger_max_head_len = 30
+		@@_apd_logger_max_head_len = 0
 		def log_int(o, additional_stack=0, opt={})
 			additional_stack ||= 0
 			o = o.to_s
