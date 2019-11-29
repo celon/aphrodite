@@ -436,7 +436,7 @@ module LogicControl
 			raise e if max_ct > 0 && ct > max_ct
 			puts e.message, level:2
 			puts "Retry #{ct+1}/#{max_ct} after #{sleep_s}s"
-			sleep(sleep_s)
+			sleep(sleep_s) if sleep_s > 0
 			retry
 		end
 	end
