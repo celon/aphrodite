@@ -62,7 +62,11 @@ class Logger
 			o = o.to_s
 			head = caller(2 + additional_stack).first.split(":in")[0]
 			head = head.split('/').last.gsub('.rb', '')
-			head = "#{Time.now.strftime("%m/%d-%H:%M:%S.%4N")} #{head} "
+			if opt[:time].nil?
+				head = "#{Time.now.strftime("%m/%d-%H:%M:%S.%4N")} #{head} "
+			else
+				head = "#{opt[:time].strftime("%m/%d-%H:%M:%S.%4N")} #{head} "
+			end
 			@@_apd_logger_max_head_len = head.size if head.size > @@_apd_logger_max_head_len
 			msg = "\r#{head.ljust(@@_apd_logger_max_head_len)}#{o}\n"
 			begin
