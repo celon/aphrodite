@@ -54,6 +54,7 @@ class Logger
 		@@_apd_logger_file_writer = nil
 		def global_output_file=(f)
 			raise "Logger:global_output_file exists #{@@_apd_logger_file}" unless @@_apd_logger_file.nil?
+			print "Logger:global_output_file -> #{f}\n"
 			@@_apd_logger_file = f
 			@@_apd_logger_file_writer = File.open(f, 'a')
 		end
@@ -69,7 +70,11 @@ class Logger
 						head = head.split(":in")[0].split('/').last.gsub('.rb', '')
 						head = "#{opt[:time].strftime("%m/%d-%H:%M:%S.%4N")} #{head} "
 						@@_apd_logger_max_head_len = [head.size, @@_apd_logger_max_head_len].max
-						msg = "#{head.ljust(@@_apd_logger_max_head_len)}#{msg}"
+						unless opt[:nohead]
+							msg = "#{head.ljust(@@_apd_logger_max_head_len)}#{msg}"
+						else
+							msg = msg.to_s
+						end
 						msg = msg.send(opt[:color]) unless opt[:color].nil?
 
 						print(opt[:inline] ? "\r#{msg}" : "\r#{msg}\n")
