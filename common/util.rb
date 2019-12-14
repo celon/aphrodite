@@ -4,10 +4,10 @@
 module LockUtil
 	def self.included(clazz)
 		super
-		# add instance methods: method_locks, method_lock_get
+		# add instance methods: _apd_method_locs, _apd_method_lock_get
 		clazz.class_eval do
-			define_method(:method_locks) { instance_variable_get :@method_locks }
-			define_method(:method_lock_get) { |m| send("__get_lock4_#{m}".to_sym) }
+			define_method(:_apd_method_locs) { instance_variable_get :@_apd_method_locs }
+			define_method(:_apd_method_lock_get) { |m| send("_apd_get_lock_for_#{m}".to_sym) }
 		end
 		# add feature DSL 'thread_safe'
 		clazz.singleton_class.class_eval do
@@ -23,21 +23,21 @@ module LockUtil
 # 					puts "#{clazz}: #{method} -> #{old_method_sym}".red
 					end
 					clazz.class_eval do
-						# add instance methods: __get_lock4_(method_name)
+						# add instance methods: _apd_get_lock_for_(method_name)
 						# All target methods share one mutex.
-						define_method("__get_lock4_#{method}".to_sym) do
-							instance_variable_set(:@method_locks, {}) if method_locks.nil?
-							return method_locks[method] unless method_locks[method].nil?
+						define_method("_apd_get_lock_for_#{method}".to_sym) do
+							instance_variable_set(:@_apd_method_locs, {}) if _apd_method_locs.nil?
+							return _apd_method_locs[method] unless _apd_method_locs[method].nil?
 							# Init mutex for all methods.
 							mutex = Mutex.new
-							methods.each { |m| method_locks[m] = mutex }
+							methods.each { |m| _apd_method_locs[m] = mutex }
 							mutex
 						end
 						# Wrap old method with lock.
 						define_method(method) do |*args, &block|
 							ret = nil
 # 							puts "#{clazz}\##{self.object_id} call thread_safe method #{method}".red
-							method_lock_get(method).synchronize do
+							_apd_method_lock_get(method).synchronize do
 # 								puts "#{clazz}\##{self.object_id} call internal method #{old_method_sym}".blue
 								ret = send old_method_sym, *args, &block
 							end
