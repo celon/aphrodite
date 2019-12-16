@@ -55,6 +55,8 @@ class Logger
 		def global_output_file=(f)
 			raise "Logger:global_output_file exists #{@@_apd_logger_file}" unless @@_apd_logger_file.nil?
 			print "Logger:global_output_file -> #{f}\n"
+			print "Logger: Async mode ON\n"
+			self.singleton_class.class_eval { alias_method :log_int, :log_int_async }
 			@@_apd_logger_file = f
 			@@_apd_logger_file_writer = File.open(f, 'a')
 		end
@@ -127,8 +129,7 @@ class Logger
 			print msg
 		end
 
-		alias_method :log_int, :log_int_async
-# 		alias_method :log_int, :log_int_sync
+		alias_method :log_int, :log_int_sync
 	end
 end
 
