@@ -15,8 +15,6 @@ gem 'concurrent-ruby', require: 'concurrent'
 # by installing optional C extensions.
 gem 'concurrent-ruby-ext' if RUBY_ENGINE == 'ruby'
 
-gem 'connection_pool'
-
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
 	gem 'twitter'
