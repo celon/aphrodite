@@ -5,12 +5,17 @@ gem 'nokogiri'
 gem 'logger'
 gem 'colorize'
 gem 'execjs'
-gem 'connection_pool'
 gem 'ruby-progressbar'
-gem 'concurrent-ruby', require: 'concurrent'
 gem 'mail'
 gem 'mailgun-ruby'
 gem 'redlock'
+
+gem 'concurrent-ruby', require: 'concurrent'
+# Potential performance improvements may be achieved under MRI 
+# by installing optional C extensions.
+gem 'concurrent-ruby-ext' if RUBY_ENGINE == 'ruby'
+
+gem 'connection_pool'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"

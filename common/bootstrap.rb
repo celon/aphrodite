@@ -58,6 +58,8 @@ require 'optparse'
 require 'optparse/time'
 require 'ostruct'
 require 'redlock'
+require 'connection_pool'
+require 'concurrent'
 
 # Load all script in given namespace.
 module APD
