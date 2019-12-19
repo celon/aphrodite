@@ -1,27 +1,28 @@
 # A genernic greedy connection pool
 #
-# It always try to keep available connections for instant usage.
+# It always keeps available connections for instant usage.
 # Used connections would be recycled/closed.
 # Broken connection would be discarded.
 #
 # pool = GreedyConnectionPool.new(10, opt) {
-# 				HTTP.persistent(HOST)
+# 	HTTP.persistent(HOST)
 # }
 # pool.with { |http| http.get/put/post }
 class GreedyConnectionPool
 	def initialize(keep_avail_size, opt={}, &block)
 		@_debug = opt[:debug] == true
-		@_http_startup_block = block
+		@_conn_create_block = block
 		@_avail_conn = Concurrent::Array.new
 		@_occupied_conn = Concurrent::Array.new
 		@_keep_avail_size = keep_avail_size
-		@_keep_avail_size.times { @_avail_conn.push(create_conn()) }
+		raise "keep_avail_size should > 0" unless keep_avail_size > 0
 		@_maintain_thread = Thread.new { maintain() }
 		@_maintain_thread.priority = -99
 	end
 
 	def create_conn
-		@_http_startup_block.call
+		puts "Create new conn" if @_debug
+		@_conn_create_block.call
 	end
 
 	def with(&block)
@@ -29,11 +30,11 @@ class GreedyConnectionPool
 		conn = @_avail_conn.delete_at(0) || create_conn()
 
 		@_occupied_conn.push(conn)
+
 		t = Time.now if @_debug
-
 		block.call(conn)
-
 		t = (Time.now - t)*1000 if @_debug
+
 		@_occupied_conn.delete(conn)
 		@_avail_conn.push(conn)
 		puts [t.round(4).to_s.ljust(8), 'ms', status] if @_debug
@@ -42,7 +43,6 @@ class GreedyConnectionPool
 	def maintain
 		loop {
 			begin
-				sleep 0.1
 				size = @_avail_conn.size
 				next if size >= @_keep_avail_size
 				(@_keep_avail_size-size).times {
@@ -51,6 +51,7 @@ class GreedyConnectionPool
 			rescue => e
 				APD::Logger.error e
 			end
+			sleep 0.1
 		}
 	end
 
