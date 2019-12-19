@@ -26,18 +26,21 @@ class GreedyConnectionPool
 	end
 
 	def with(&block)
-		return if block.nil?
+		return nil if block.nil?
 		conn = @_avail_conn.delete_at(0) || create_conn()
+		@_maintain_thread.wakeup
 
 		@_occupied_conn.push(conn)
 
 		t = Time.now if @_debug
-		block.call(conn)
+		ret = block.call(conn)
 		t = (Time.now - t)*1000 if @_debug
 
 		@_occupied_conn.delete(conn)
 		@_avail_conn.push(conn)
 		puts [t.round(4).to_s.ljust(8), 'ms', status] if @_debug
+
+		ret
 	end
 
 	def maintain
@@ -50,8 +53,9 @@ class GreedyConnectionPool
 				}
 			rescue => e
 				APD::Logger.error e
+			ensure
+				sleep
 			end
-			sleep 0.1
 		}
 	end
 
