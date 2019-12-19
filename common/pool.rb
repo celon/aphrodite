@@ -21,8 +21,13 @@ class GreedyConnectionPool
 	end
 
 	def create_conn
-		puts "Create new conn" if @_debug
-		@_conn_create_block.call
+		t = Time.now if @_debug
+		conn = @_conn_create_block.call
+		if @_debug
+			t = (Time.now - t)*1000
+			puts ["Create new conn", t.round(4).to_s.ljust(8), 'ms', status]
+		end
+		conn
 	end
 
 	def with(&block)
@@ -38,7 +43,7 @@ class GreedyConnectionPool
 
 		@_occupied_conn.delete(conn)
 		@_avail_conn.push(conn)
-		puts [t.round(4).to_s.ljust(8), 'ms', status] if @_debug
+		puts ["with()", t.round(4).to_s.ljust(8), 'ms', status] if @_debug
 
 		ret
 	end
@@ -62,7 +67,7 @@ class GreedyConnectionPool
 	def status
 		{
 			:avail => @_avail_conn.size,
-			:total => (@_occupied_conn.size + @_avail_conn.size)
+			:using => @_occupied_conn.size
 		}
 	end
 end
