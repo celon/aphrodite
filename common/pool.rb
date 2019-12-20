@@ -5,9 +5,12 @@
 # Broken connection would be discarded.
 #
 # pool = GreedyConnectionPool.new(10, opt) {
-# 	HTTP.persistent(HOST)
+#   HTTP.persistent(host, timeout:2147483647).timeout(read: 3, write:2, connection:1)
 # }
 # pool.with { |http| http.get/put/post }
+# # Use http.get/put/post directly.
+# # Use http.default_options.to_hash to confirm timeout settings.
+# # !! http.timeout(new_value) would lead to a new connection creation.
 class GreedyConnectionPool
 	def initialize(keep_avail_size, opt={}, &block)
 		@_debug = opt[:debug] == true
@@ -38,7 +41,14 @@ class GreedyConnectionPool
 		@_occupied_conn.push(conn)
 
 		t = Time.now if @_debug
-		ret = block.call(conn)
+		begin
+			ret = block.call(conn)
+		rescue HTTP::ConnectionError => e
+			puts ["with() http connection error", e.message] if @_debug
+			@_occupied_conn.delete(conn)
+			conn.close
+			return nil
+		end
 		t = (Time.now - t)*1000 if @_debug
 
 		@_occupied_conn.delete(conn)
