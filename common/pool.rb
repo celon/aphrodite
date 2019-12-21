@@ -12,48 +12,49 @@
 # # Use http.default_options.to_hash to confirm timeout settings.
 # # !! http.timeout(new_value) would lead to a new connection creation.
 class GreedyConnectionPool
-	def initialize(keep_avail_size, opt={}, &block)
-		@_debug = opt[:debug] == true
-		@_conn_create_block = block
+	attr_reader :name
+	attr_accessor :keep_avail_size, :debug
+	def initialize(name, keep_avail_size, opt={}, &block)
+		@name = name
+		@debug = opt[:debug] == true
+		@_conn_create_block = block if block_given?
 		@_avail_conn = Concurrent::Array.new
 		@_occupied_conn = Concurrent::Array.new
-		@_keep_avail_size = keep_avail_size
-		raise "keep_avail_size should > 0" unless keep_avail_size > 0
+		@keep_avail_size = keep_avail_size
+		raise "keep_avail_size should >= 0" unless keep_avail_size >= 0
 		@_maintain_thread = Thread.new { maintain() }
 		@_maintain_thread.priority = -99
 	end
 
 	def create_conn
-		t = Time.now if @_debug
+		t = Time.now.to_f
 		conn = @_conn_create_block.call
-		if @_debug
-			t = (Time.now - t)*1000
-			puts ["Create new conn", t.round(4).to_s.ljust(8), 'ms', status]
-		end
+		t = (Time.now.to_f - t)*1000
+		puts [@name, "Create new conn", t.round(4).to_s.ljust(8), 'ms', status]
 		conn
 	end
 
 	def with(&block)
 		return nil if block.nil?
 		conn = @_avail_conn.delete_at(0) || create_conn()
-		@_maintain_thread.wakeup
+		@_maintain_thread.wakeup if @_maintain_thread != nil
 
 		@_occupied_conn.push(conn)
 
-		t = Time.now if @_debug
+		t = Time.now.to_f if @debug
 		begin
 			ret = block.call(conn)
 		rescue HTTP::ConnectionError => e
-			puts ["with() http connection error", e.message] if @_debug
+			puts [@name, "with() http connection error", e.message] if @debug
 			@_occupied_conn.delete(conn)
 			conn.close
 			return nil
 		end
-		t = (Time.now - t)*1000 if @_debug
+		t = (Time.now.to_f - (t||0))*1000 if @debug
 
 		@_occupied_conn.delete(conn)
 		@_avail_conn.push(conn)
-		puts ["with()", t.round(4).to_s.ljust(8), 'ms', status] if @_debug
+		puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status] if @debug
 
 		ret
 	end
@@ -62,8 +63,8 @@ class GreedyConnectionPool
 		loop {
 			begin
 				size = @_avail_conn.size
-				next if size >= @_keep_avail_size
-				(@_keep_avail_size-size).times {
+				next if size >= @keep_avail_size
+				(@keep_avail_size-size).times {
 					@_avail_conn.push(create_conn())
 				}
 			rescue => e
@@ -79,5 +80,51 @@ class GreedyConnectionPool
 			:avail => @_avail_conn.size,
 			:using => @_occupied_conn.size
 		}
+	end
+end
+
+# An example.
+class GreedyRedisPool < GreedyConnectionPool
+	def initialize(keep_avail_size, opt={})
+		redis_db = opt[:redis_db] || raise("redis_db should be specified in opt")
+		super('redis', keep_avail_size, opt) { 
+			puts "New redis client"
+			Redis.new :host => REDIS_HOST, port:REDIS_PORT, db:redis_db, password:REDIS_PSWD, timeout:20.0, connect_timeout:20.0, reconnect_attempts:10
+		}
+	end
+end
+
+# A drop-in proxy for any type of connections
+# It would proxy any missing method to a connection warpped in pool.with()
+# Example:
+# proxy = TransparentGreedyPoolProxy.new( GreedyConnectionPool.new(...) )
+# # Proxy could be used as a single redis client.
+# proxy.get(...)
+# proxy.hset(...)
+# proxy.subscribe(...)
+class TransparentGreedyPoolProxy
+	include LockUtil
+	attr_reader :pool
+	def initialize(pool)
+		@pool = pool
+		@dynamic_methods = {}
+	end
+
+	def method_missing(method, *args, &block)
+		return unless @dynamic_methods[method].nil?
+		puts "TransparentGreedyPoolProxy #{@pool.name} adding #{method}() on-the-fly"
+		self.define_singleton_method(method) do |*method_args, &method_block|
+			ret = nil
+			@pool.with() { |conn| ret = conn.send(method, *method_args, &method_block) }
+			ret
+		end
+		@dynamic_methods[method] = true
+
+		# Call this new method after creating.
+		send(method, *args, &block)
+	end
+
+	def respond_to?(method)
+		true
 	end
 end
