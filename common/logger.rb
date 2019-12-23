@@ -91,7 +91,7 @@ class Logger
 				end
 			}
 		}
-		@@_apd_logger_file_w_thread.priority = -99
+		@@_apd_logger_file_w_thread.priority = -3
 	
 		private
 	
