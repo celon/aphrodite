@@ -17,6 +17,7 @@ class GreedyConnectionPool
 	def initialize(name, keep_avail_size, opt={}, &block)
 		@name = name
 		@debug = opt[:debug] == true
+		@_warn_time = opt[:warn_time]
 		@_conn_create_block = block if block_given?
 		@_avail_conn = Concurrent::Array.new
 		@_occupied_conn = Concurrent::Array.new
@@ -41,20 +42,29 @@ class GreedyConnectionPool
 
 		@_occupied_conn.push(conn)
 
-		t = Time.now.to_f if @debug
+		t = Time.now.to_f
 		begin
 			ret = block.call(conn)
 		rescue HTTP::ConnectionError => e
 			puts [@name, "with() http connection error", e.message] if @debug
 			@_occupied_conn.delete(conn)
 			conn.close
-			return nil
+			raise e
 		end
-		t = (Time.now.to_f - (t||0))*1000 if @debug
+		t = (Time.now.to_f - t)
+		warn = (@_warn_time != nil && @_warn_time <= t)
+		t *= 1000
 
 		@_occupied_conn.delete(conn)
 		@_avail_conn.push(conn)
-		puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status] if @debug
+
+		if warn
+			puts [
+				@name, "with()", t.round(4).to_s.ljust(8), 'ms', 'thread.priority', Thread.current.priority, status
+			].to_s.red, level:6
+		elsif @debug
+			puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status]
+		end
 
 		ret
 	end
