@@ -23,8 +23,12 @@ class GreedyConnectionPool
 		@_occupied_conn = Concurrent::Array.new
 		@keep_avail_size = keep_avail_size
 		raise "keep_avail_size should >= 0" unless keep_avail_size >= 0
-		@_maintain_thread = Thread.new { maintain() }
-		@_maintain_thread.priority = -99
+		thread_name = "#{self.class.name} #{name} maintain"
+		@_maintain_thread = Thread.new(abort_on_exception:true) {
+			Thread.current[:name] = thread_name
+			maintain_loop()
+		}
+		@_maintain_thread.priority = -3
 	end
 
 	def create_conn
@@ -38,7 +42,14 @@ class GreedyConnectionPool
 	def with(&block)
 		return nil if block.nil?
 		conn = @_avail_conn.delete_at(0) || create_conn()
-		@_maintain_thread.wakeup if @_maintain_thread != nil
+		if @_maintain_thread != nil
+			# https://ruby-doc.org/core-2.6.5/Thread.html#method-i-status
+			if @_maintain_thread.status
+				@_maintain_thread.wakeup
+			else
+				maintain()
+			end
+		end
 
 		@_occupied_conn.push(conn)
 
@@ -61,7 +72,7 @@ class GreedyConnectionPool
 		if warn
 			puts [
 				@name, "with()", t.round(4).to_s.ljust(8), 'ms', 'thread.priority', Thread.current.priority, status
-			].to_s.red, level:6
+			].to_s.red, level:4
 		elsif @debug
 			puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status]
 		end
@@ -70,13 +81,16 @@ class GreedyConnectionPool
 	end
 
 	def maintain
+		(@keep_avail_size-@_avail_conn.size).times {
+			@_avail_conn.push(create_conn())
+		}
+	end
+
+	def maintain_loop
 		loop {
 			begin
-				size = @_avail_conn.size
-				next if size >= @keep_avail_size
-				(@keep_avail_size-size).times {
-					@_avail_conn.push(create_conn())
-				}
+				next if @_avail_conn.size >= @keep_avail_size
+				maintain()
 			rescue => e
 				APD::Logger.error e
 			ensure
