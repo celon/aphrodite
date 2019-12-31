@@ -71,8 +71,10 @@ class GreedyConnectionPool
 
 		if warn
 			puts [
-				@name, "with()", t.round(4).to_s.ljust(8), 'ms', 'thread.priority', Thread.current.priority, status
-			].to_s.red, level:4
+				@name, "with()", t.round(4).to_s.ljust(8), 'ms',
+				'thr.p', Thread.current.priority,
+				status.to_json
+			].join(' ').red, level:4
 		elsif @debug
 			puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status]
 		end

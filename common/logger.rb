@@ -1,33 +1,33 @@
 require 'concurrent'
 class Logger
 	class << self
-		def getExceptionStackInfo(e)
-			return "[#{e.class.name}]\nMSG:[#{e.message}]\n#{getStackInfo(e.backtrace)}"
+		def exception_desc(e)
+			return "[#{e.class.name}]\nMSG:[#{e.message}]\n#{stacktrace(e.backtrace)}"
 		end
 	
 		def debug(str)
-			str = getExceptionStackInfo(str) if str.is_a?(Exception)
+			str = exception_desc(str) if str.is_a?(Exception)
 			log_int str
 		end
 	
 		def log(str, additional_stack=0, opt={})
-			str = getExceptionStackInfo(str) if str.is_a?(Exception)
+			str = exception_desc(str) if str.is_a?(Exception)
 			log_int str, additional_stack, opt
 		end
 	
 		def info(str)
-			str = getExceptionStackInfo(str) if str.is_a?(Exception)
+			str = exception_desc(str) if str.is_a?(Exception)
 			log_int str, nil, color: :blue
 		end
 	
 		def highlight(str)
-			str = getExceptionStackInfo(str) if str.is_a?(Exception)
+			str = exception_desc(str) if str.is_a?(Exception)
 			log_int str, nil, color: :red
 		end
 	
 		def warn(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str), nil, color: :light_magenta
+				log_int exception_desc(str), nil, color: :light_magenta
 			else
 				log_int str, nil, color: :light_magenta
 			end
@@ -35,17 +35,17 @@ class Logger
 	
 		def error(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str), nil, color: :light_red
+				log_int exception_desc(str), nil, color: :light_red
 			else
-				log_int (str.to_s + "\n" +  getStackInfo(caller)), nil, color: :light_red
+				log_int (str.to_s + "\n" +  stacktrace(caller)), nil, color: :light_red
 			end
 		end
 	
 		def fatal(str)
 			if str.is_a?(Exception)
-				log_int getExceptionStackInfo(str), nil, color: :red
+				log_int exception_desc(str), nil, color: :red
 			else
-				log_int (str.to_s + "\n" +  getStackInfo(caller)), nil, color: :red
+				log_int (str.to_s + "\n" +  stacktrace(caller)), nil, color: :red
 			end
 		end
 		@@_apd_logger_max_head_len = 0
@@ -93,13 +93,13 @@ class Logger
 								name = opt[:t_name]
 								priority = opt[:t_priority].to_s.rjust(2)
 								msg_t = "\r#{head.ljust(@@_apd_logger_max_head_len)}#{priority} #{name}"
-								print_msg.push((msg_t+"\n").light_black)
+								print_msg.push((msg_t+"\n").yellow)
 							end
 
 							print_msg.push(opt[:inline] ? "\r#{msg}" : "\r#{msg}\n")
 							if opt[:nofile] != true && @@_apd_logger_file_writer != nil
 								fputs_ct += 1
-								flush_msg.push(msg_t.light_black) if msg_t != nil
+								flush_msg.push(msg_t.yellow) if msg_t != nil
 								flush_msg.push(msg)
 							end
 						}
@@ -120,9 +120,9 @@ class Logger
 	
 		private
 	
-		def getStackInfo(callerInspectInfo)
+		def stacktrace(backtrace)
 			info = "StackTrace:\n"
-			callerInspectInfo.each { |line| info += line + "\n" }
+			backtrace.each { |line| info += line + "\n" }
 			return info
 		end
 
@@ -170,7 +170,7 @@ class Logger
 				name = t[:name] || t.to_s
 				priority = t.priority.to_s.rjust(2)
 				msg_t = "\r#{head.ljust(@@_apd_logger_max_head_len)}#{priority} #{name}\n"
-				print msg_t.light_black
+				print msg_t.yellow
 			end
 
 			begin
