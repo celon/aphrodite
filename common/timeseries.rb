@@ -7,6 +7,7 @@ class TimeSeriesBucket
 		@buckets = units.times.map { [] }
 		@latest_bucket_id = 0
 		@latest_bucket = @buckets[@bucket_num-1]
+		@useless_bucket = []
 	end
 
 	def append(t, data) # t in ms
@@ -15,18 +16,56 @@ class TimeSeriesBucket
 		# Put into current bucket
 		return(@latest_bucket.push(data)) if id == @latest_bucket_id
 		# Fill gap between latest_bucket_id and id
-		@buckets += [id-@latest_bucket_id, @bucket_num].min.times.map { [] }
-		# Remove old buckets, keep buckets number = @bucket_num
-		@buckets.slice!(0, @buckets.size-@bucket_num) # See which is faster
-		# @buckets = @buckets[-@bucket_num..-1]
+		gap = [id-@latest_bucket_id, @bucket_num].min
+
+		# Method 1, no shift() needed
+		# push(): 19-20K, is faster than +=, and N.times {}
+		if gap == 1
+			@buckets.push(@buckets.shift.clear)
+		elsif gap == 2
+			@buckets.push(@buckets.shift.clear)
+			@buckets.push(@buckets.shift.clear)
+		else
+			gap.times { @buckets.push(@buckets.shift.clear) }
+		end
+		
+		# Method 2, no shift() needed
+# 		gap.times {
+# 			@buckets.push(@buckets.shift.clear)
+# 		}
+
+		# Method 3
+# 		if gap == 1
+# 			@buckets.push([])
+# 		elsif gap == 2
+# 			@buckets.push(@useless_bucket)
+# 			@buckets.push([])
+# 		else
+# 			(gap-1).times { @buckets.push(@useless_bucket) }
+# 			@buckets.push([])
+# 		end
+# 		@buckets.shift(gap)
+
+		# @buckets += ([[]] * ([id-@latest_bucket_id, @bucket_num].min)) # 13~17K in backtesting
+		# @buckets.concat([[]] * gap) # concat() 17K
+
 		# Put into latest bucket
 		@latest_bucket = @buckets[@bucket_num-1]
 		@latest_bucket.push data
 		@latest_bucket_id = id # Update latest_bucket_id
 	end
 
+	def each(&block) # Faster than all_data().each
+		@buckets.each { |b|
+			b.each(&block)
+		}
+	end
+
 	def all_data
-		@buckets.reduce(:+)
+		# @buckets.reduce(:+) # 28K -> 18K
+		all = []
+		@buckets.each { |d| all.concat(d) } # 28L -> 22K
+		all
 	end
 
 	def print # Debug
