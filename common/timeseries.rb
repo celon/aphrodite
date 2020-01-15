@@ -66,9 +66,11 @@ class TimeSeriesBucket
 	end
 
 	def each(&block) # Faster than all_data().each
-		@buckets.each { |b|
-			b.each(&block)
-		}
+		@buckets.each { |b| b.each(&block) }
+	end
+
+	def each_bucket_top(&block)
+		@buckets.each { |b| block.call(b.first) }
 	end
 
 	def all_data
