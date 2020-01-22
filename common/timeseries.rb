@@ -2,6 +2,7 @@
 class TimeSeriesBucket
 	def initialize(time_unit_ms, units)
 		@time_unit_ms = time_unit_ms.to_i
+		raise "time_unit_ms #{time_unit_ms} is 0" if @time_unit_ms == 0
 		@bucket_num = units
 		# Initializing buckets with bucket_num empty ones.
 		@buckets = units.times.map { [] }
@@ -10,11 +11,20 @@ class TimeSeriesBucket
 		@useless_bucket = []
 	end
 
+	def shift
+		@buckets[0].shift
+	end
+
+	# Regroup buckets.
+	# Append data into last bucket.
 	def append(t, data) # t in ms
 		id = t.to_i / @time_unit_ms
 		# puts ['incoming', t] # Debug
 		# Put into current bucket
-		return(@latest_bucket.push(data)) if id == @latest_bucket_id
+		if id == @latest_bucket_id
+			return if data.nil?
+			return(@latest_bucket.push(data))
+		end
 		# Fill gap between latest_bucket_id and id
 		gap = [id-@latest_bucket_id, @bucket_num].min
 
@@ -51,14 +61,16 @@ class TimeSeriesBucket
 
 		# Put into latest bucket
 		@latest_bucket = @buckets[@bucket_num-1]
-		@latest_bucket.push data
+		@latest_bucket.push(data) if data != nil
 		@latest_bucket_id = id # Update latest_bucket_id
 	end
 
 	def each(&block) # Faster than all_data().each
-		@buckets.each { |b|
-			b.each(&block)
-		}
+		@buckets.each { |b| b.each(&block) }
+	end
+
+	def each_bucket_top(&block)
+		@buckets.each { |b| block.call(b.first) }
 	end
 
 	def all_data
