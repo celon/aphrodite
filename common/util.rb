@@ -102,7 +102,7 @@ module ExpireResult
 						end
 						instance_variable_get(r_key)[args_key] = ret
 						instance_variable_get(t_key)[args_key] = DateTime.now
-						puts "Cache #{method} result for #{args_key} in #{expire_t} seconds."
+						# puts "Cache #{method} result for #{args_key} in #{expire_t} seconds."
 						return ret
 					end
 				end
