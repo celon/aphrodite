@@ -18,6 +18,7 @@ class GreedyConnectionPool
 		@name = name
 		@debug = opt[:debug] == true
 		@_warn_time = opt[:warn_time]
+		@_warn_stack = opt[:warn_stack] || 4
 		@_conn_create_block = block if block_given?
 		@_avail_conn = Concurrent::Array.new
 		@_occupied_conn = Concurrent::Array.new
@@ -74,7 +75,7 @@ class GreedyConnectionPool
 				@name, "with()", t.round(4).to_s.ljust(8), 'ms',
 				'thr.p', Thread.current.priority,
 				status.to_json
-			].join(' ').red, level:4
+			].join(' ').red, level:@_warn_stack
 		elsif @debug
 			puts [@name, "with()", t.round(4).to_s.ljust(8), 'ms', status]
 		end
