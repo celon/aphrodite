@@ -13,11 +13,11 @@
 # # !! http.timeout(new_value) would lead to a new connection creation.
 class GreedyConnectionPool
 	attr_reader :name
-	attr_accessor :keep_avail_size, :debug
+	attr_accessor :keep_avail_size, :debug, :warn_time
 	def initialize(name, keep_avail_size, opt={}, &block)
 		@name = name
 		@debug = opt[:debug] == true
-		@_warn_time = opt[:warn_time]
+		@warn_time = opt[:warn_time]
 		@_warn_stack = opt[:warn_stack] || 4
 		@_conn_create_block = block if block_given?
 		@_avail_conn = Concurrent::Array.new
@@ -64,7 +64,7 @@ class GreedyConnectionPool
 			raise e
 		end
 		t = (Time.now.to_f - t)
-		warn = (@_warn_time != nil && @_warn_time <= t)
+		warn = (@warn_time != nil && @warn_time <= t)
 		t *= 1000
 
 		@_occupied_conn.delete(conn)
