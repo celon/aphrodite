@@ -4,14 +4,16 @@ require 'optparse/time'
 require 'ostruct'
 
 class MailTask
+	# Works on Linux with smtp service on.
+	# Otherwise it would try using GMAIL with account and password.
 	def self.email_plain(receiver, subject, content='EMPTY', bcc = nil, opt={})
-		hostname = ENV['HOSTNAME'] || abort("No ENV variable HOSTNAME")
+		hostname = ENV['HOSTNAME'] || "unknown.local"
 		author = (opt[:from] || "Automator <automator@#{hostname}>")
 		content ||= ""
 		content += File.read(opt[:html_file]) unless opt[:html_file].nil?
 		puts "email_plain #{author} -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
 		content = 'NO CONTENT' if content.empty?
-		Mail.deliver do
+		mail = Mail.new do
 			to      receiver
 			from    author
 			subject subject
@@ -38,6 +40,24 @@ class MailTask
 					add_file f
 				end
 			end
+		end
+		begin
+			mail.deliver!
+		rescue Errno::ECONNREFUSED
+			puts "Try sending email again with gmail smtp"
+			raise "No GMAIL_USER & GMAIL_PSWD in ENV" if ENV['GMAIL_USER'].nil? || ENV['GMAIL_PSWD'].nil?
+			mail.from ENV['GMAIL_USER']
+			smtp_settings = [:smtp, {
+					:address => "smtp.gmail.com",
+					:port => 587,
+					:domain => 'gmail.com',
+					:user_name => ENV['GMAIL_USER'],
+					:password => ENV['GMAIL_PSWD'],
+					:authentication => 'plain',
+					:enable_starttls_auto => true
+				}]
+			mail.delivery_method *smtp_settings
+			mail.deliver!
 		end
 	end
 
