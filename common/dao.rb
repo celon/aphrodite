@@ -427,7 +427,7 @@ class DynamicMysqlDao < MysqlDao
 		hex_pack, base64_pack = false, false
 		type.reverse.each do |t|
 			method = MYSQL_TYPE_MAP[t.to_sym]
-			raise "Unsupport mysql type:#{type}" if method.nil?
+			raise "Unsupport mysql type:#{t} in #{type}" if method.nil?
 			method = method.to_sym
 			case method
 			when :to_datetime
