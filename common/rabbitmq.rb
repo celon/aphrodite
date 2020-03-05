@@ -198,7 +198,11 @@ module MQUtil
 						tuple = clazz.new(data)
 						dao.save(tuple, allow_dup_entry)
 						after_save_lbd.call(tuple) unless after_save_lbd.nil?
-					rescue Mysql::ServerError::TruncatedWrongValueForField => e
+					rescue Mysql::ServerError::TruncatedWrongValueForField
+						success = false
+					rescue Mysql::ServerError::DataTooLong
+						success = false
+					rescue Mysql::ServerError::Mysql::ServerError::DataTooLong
 						success = false
 					end
 				end
