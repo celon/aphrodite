@@ -415,7 +415,8 @@ module LogicControl
 	def endless_retry(opt={}, &block)
 		opt_c = opt.clone
 		opt_c[:retry_ct] = 0
-		limit_retry(opt, &block)
+		opt_c[:log_level] = 4
+		limit_retry(opt_c, &block)
 	end
 	def no_complain(opt={})
 		begin
@@ -428,13 +429,14 @@ module LogicControl
 	def limit_retry(opt={})
 		max_ct = opt[:retry_ct] || 3
 		sleep_s = opt[:sleep] || 0
+		log_level = opt[:log_level] || 3
 		ct = 0
 		begin
 			ct += 1
 			return yield()
 		rescue => e
 			raise e if max_ct > 0 && ct > max_ct
-			puts e
+			puts e.message, level:log_level
 			puts "Retry #{ct+1}/#{max_ct} after #{sleep_s}s"
 			sleep(sleep_s) if sleep_s > 0
 			retry
