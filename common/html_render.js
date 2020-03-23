@@ -24,7 +24,33 @@ var log = function(string) {
 var compareUrl = function(url1, url2) {
 	var location1 = getLocation(url1);
 	var location2 = getLocation(url2);
-	return (location1.hostname == location2.hostname) && (location1.pathname == location2.pathname);
+	var ret = (location1.hostname == location2.hostname) && (location1.pathname == location2.pathname);
+	if (ret == true) return true;
+	// Sometimes, path would be a little different with suffix.
+	// Example: /p/5301633  <-> /p/5301633.html
+	log("url not equal:\n" + url1 +
+			"\nHOST: " + location1.hostname + 
+			"\nPATH: " + location1.pathname +
+			"\n" + url2 +
+			"\nHOST: " + location2.hostname + 
+			"\nPATH: " + location2.pathname
+	   );
+	if (location1.hostname == location2.hostname) {
+		var diffSuffix = null;
+		if (location1.pathname.indexOf(location2.pathname) == 0) {
+			diffSuffix = location1.pathname.substring(location2.pathname.length);
+		} else if (location2.pathname.indexOf(location1.pathname) == 0) {
+			diffSuffix = location2.pathname.substring(location1.pathname.length);
+		}
+		if (diffSuffix == null) return false;
+		log("pathname difference: " + diffSuffix);
+		var expectedHtmlSuffix = new RegExp(/^\.[a-zA-Z]{1,4}$/);
+		if (expectedHtmlSuffix.test(diffSuffix)) {
+			log("difference looks like a expected html suffix, treat two URLs as same.");
+			return true;
+		}
+	}
+	return false;
 }
 
 // Arguments
@@ -32,7 +58,6 @@ var taskUrl = system.args[1];
 var outputFile = system.args[2];
 var timeout = system.args[3];
 var imageFile = system.args[4];
-var loadImage = null;
 var urlSettings = null;
 var tryDifferentDeviceAfterFail = true;
 var actionCode = null;
@@ -45,10 +70,8 @@ if (system.args[1] == '-f') {
 		outputFile = taskJson.html;
 		timeout = taskJson.timeout;
 		imageFile = taskJson.image;
-		loadImage = taskJson.loadimage;
 		urlSettings = taskJson.settings;
 		actionCode = taskJson.action;
-		postRenderWaitTime = taskJson.post_render_wait_time || 0;
 		if (urlSettings != null) {
 			console.log("Phantomjs page.open settings is load.");
 			if (typeof urlSettings.data === 'string' || urlSettings instanceof String)
@@ -80,6 +103,10 @@ if (system.args[1] == '-f') {
 	}
 }
 
+// ENCODE url to for further comparasion.
+// NON-ASCII code in URL would lead error in checking status finished.
+taskUrl = encodeURI(taskUrl);
+
 // Parse args.
 if (taskUrl.indexOf('/') == 0 || taskUrl.indexOf('.') == 0)
 	taskUrl = 'file://' + fs.absolute(taskUrl);
@@ -92,18 +119,14 @@ log("Timeout: " + timeout);
 var taskDomain = getLocation(taskUrl).hostname.split('.');
 taskDomain = taskDomain[taskDomain.length - 2] + '.' + taskDomain[taskDomain.length - 1];
 log("Task domain: " + taskDomain);
-if (loadImage == false)
-	page.settings.loadImages = false;
-else if (imageFile == null)
+if (imageFile == null)
 	page.settings.loadImages = false;
 else
-	page.settings.loadImages = true;
-
-if (imageFile != null)
 	log("Save image: " + imageFile);
 
 // Init state.
 var currentTaskUrl = taskUrl;
+var appearredWindowLocation = [];
 var history = {};
 var maxResponseId = 0;
 var taskFinished = false;
@@ -147,8 +170,8 @@ page.onLoadStarted = function() {
     var currentUrl = page.evaluate(function() {
         return window.location.href;
     });
-	if (currentUrl == 'about:blank')
-		return;
+	if (currentUrl == 'about:blank') return;
+	if (currentUrl == null) return;
 	log('Phantomjs is now leaving :' + currentUrl);
     log('task:' + currentTaskUrl);
     log('history:' + JSON.stringify(history));
@@ -169,7 +192,7 @@ page.onLoadFinished = function(status) {
 }
 
 pageLoadFinished = function(currentUrl, status) {
-    log('pageLoadFinished():' + status + " url: " + currentUrl + ' currentTaskUrl:' + currentTaskUrl +  ' history:' + JSON.stringify(history));
+    log('pageLoadFinished():' + status + " url:\n" + currentUrl + "\ncurrentTaskUrl:\n" + currentTaskUrl +  "\nhistory:" + JSON.stringify(history));
 	// FIRST THING: record currentUrl if it is equal to currentTaskUrl
 	if (compareUrl(currentUrl, currentTaskUrl)) {
 		history[currentUrl] = 1;
@@ -181,6 +204,25 @@ pageLoadFinished = function(currentUrl, status) {
 	}
 
 	var success = (status === "success");
+	// If all history tasks are finished and urrentTaskUrl is null,
+	// mark as finished.
+	if (currentTaskUrl == null) {
+		var allFinished = true;
+		var keyCt = 0;
+		for (var key in history) {
+			keyCt += 1;
+			if (history[key] != 1) {
+				allFinished = false;
+				break;
+			}
+		}
+		if (keyCt > 0 && allFinished == true) {
+			log("currentTaskUrl is NULL, " +
+					keyCt + " history paths are finished, so it is finished");
+			taskFinished = true;
+			return postLoadAction();
+		}
+	}
 
 	// Whether success or not, always wait for 5 second to check whether phantomjs is redirected to a new page.
 	var oldHistory = JSON.stringify(history);
@@ -225,10 +267,26 @@ page.onResourceRequested = function(requestData, networkRequest) {
 	    log('Current task url is changed: ' + currentTaskUrl)
 	}
 };
+
 page.onResourceReceived = function(response) {
 	var u = getLocation(response.url);
 	var path = u.pathname;
 	var domain = u.hostname;
+    var currentUrl = page.evaluate(function() {
+        return window.location.href;
+    });
+	// There might be several redirections, 
+	// the firstly appearred URL is the real task URL.
+	if (currentUrl != null && currentUrl != 'about:blank') {
+		if (appearredWindowLocation.length == 0) {
+			// First appeared
+			if (currentTaskUrl != currentUrl) {
+				log("Looks like real task URL is " + currentUrl);
+				currentTaskUrl = currentUrl;
+			}
+			appearredWindowLocation.push(currentUrl);
+		}
+	}
     log('    <<<<< Receive (#' + response.id  + '): \t' + response.url);
 	if (maxResponseId < response.id)
 		maxResponseId = response.id;
@@ -266,9 +324,6 @@ var postLoadAction = function() {
 		taskFinished = false;
 		page.evaluate(actionCode);
 	}
-	if (postRenderWaitTime > 0)
-		log("Post render wait time: " + postRenderWaitTime);
-	waitTime += postRenderWaitTime * 1000;
 	setTimeout(lastAction, waitTime);
 }
 var lastAction = function() {
