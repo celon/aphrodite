@@ -26,8 +26,13 @@ var compareUrl = function(url1, url2) {
 	var location2 = getLocation(url2);
 	var ret = (location1.hostname == location2.hostname) && (location1.pathname == location2.pathname);
 	if (ret == true) return true;
-	// Sometimes, path would be a little different with suffix.
-	// Example: /p/5301633  <-> /p/5301633.html
+	// When target page load finished, path might be different from 
+	// the one from pageLoadFinished(url)
+	// Case A: path would be a little different with suffix.
+	// 	Example: /p/5301633  - /p/5301633.html
+	// Case B: path could just be a slash /
+	// 	Example: /  - /p/5301633.html
+	// 	https://www.huxiu.com/article/290768.html?f=wangzhan
 	log("url not equal:\n" + url1 +
 			"\nHOST: " + location1.hostname + 
 			"\nPATH: " + location1.pathname +
@@ -47,6 +52,10 @@ var compareUrl = function(url1, url2) {
 		var expectedHtmlSuffix = new RegExp(/^\.[a-zA-Z]{1,4}$/);
 		if (expectedHtmlSuffix.test(diffSuffix)) {
 			log("difference looks like a expected html suffix, treat two URLs as same.");
+			return true;
+		}
+		if (location1.pathname == '/' || location2.pathname == '/') {
+			log("difference looks like a homepage path, treat two URLs as same.");
 			return true;
 		}
 	}
