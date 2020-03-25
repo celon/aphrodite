@@ -11,7 +11,7 @@ class MailTask
 		author = (opt[:from] || "Automator <automator@#{hostname}>")
 		content ||= ""
 		content += File.read(opt[:html_file]) unless opt[:html_file].nil?
-		puts "email_plain #{author} -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
+		puts "email_plain -> #{receiver} | #{subject} | content:#{content.size} attachment:#{opt[:file] != nil}"
 		content = 'NO CONTENT' if content.empty?
 		mail = Mail.new do
 			to      receiver
