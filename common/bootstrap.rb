@@ -77,4 +77,8 @@ module APD
 	batch.each do |f|
  		eval File.read(f), binding, File.basename(f)
 	end
+
+	# Load bin/
+	f = "#{dir}/../bin/mail_task.rb"
+	eval File.read(f), binding, File.basename(f)
 end
