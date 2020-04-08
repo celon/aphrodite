@@ -100,6 +100,9 @@ module SpiderUtil
 		retry_delay = opt[:retry_delay] || 1
 		encoding = opt[:encoding]
 		header = opt[:header] || {}
+		post_data = opt[:post]
+		post_data = map_to_poststr(post_data) if post_data.is_a?(Hash)
+
 		tmp_file_use = false
 		if file.nil?
 			rand = Random.rand(10000).to_s.rjust(4, '0')
@@ -113,6 +116,7 @@ module SpiderUtil
 			return result
 		end
 		cmd = "curl --output '#{file}' -L " # -L Follow 301 redirection.
+		cmd += " --data \"#{post_data}\"" unless post_data.nil?
 		cmd += " --fail" unless opt[:allow_http_error]
 		cmd += " --silent" unless opt[:verbose]
 		cmd += " -A '#{agent}'" unless agent.nil?

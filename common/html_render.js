@@ -368,6 +368,10 @@ var retryWithAnotherAgent = function(status) {
 	setTimeout(function(){
 		log("================== USE IPAD USER AGENT TO TRY AGAIN ================");
 		page.settings.userAgent = iPadUserAgent;
+		page.viewportSize = {
+			width: 900,
+			height: 1600
+		};
 		taskFinished = false;
 		currentTaskUrl = system.args[1];
 		history = {};
@@ -386,6 +390,10 @@ var retryWithAnotherAgent = function(status) {
 }
 
 page.settings.userAgent = desktopUserAgent;
+page.viewportSize = {
+	width: 1600,
+	height: 1200
+};
 if (urlSettings == null)
 	page.open(taskUrl, retryWithAnotherAgent);
 else
