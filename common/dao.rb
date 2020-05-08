@@ -274,7 +274,7 @@ class DynamicMysqlDao < MysqlDao
 			}
 			type = type.split('(')[0]
 			attrs[name] = [type]
-			unless comment.nil? or comment.empty?
+			unless comment.nil? || comment.empty? || comment.start_with?('#')
 				comment.split(',')[0].split('|').each do |t|
 					t = t.strip
 					next if t.empty?
