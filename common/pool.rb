@@ -137,8 +137,17 @@ class TransparentGreedyPoolProxy
 		@dynamic_methods = {}
 	end
 
+  def with
+    ret = nil
+    @pool.with() { |conn|
+      ret = yield conn
+    }
+    ret
+  end
+
 	def method_missing(method, *args, &block)
 		return unless @dynamic_methods[method].nil?
+
 		puts "TransparentGreedyPoolProxy #{@pool.name} adding #{method}() on-the-fly"
 		self.define_singleton_method(method) do |*method_args, &method_block|
 			ret = nil
@@ -152,6 +161,9 @@ class TransparentGreedyPoolProxy
 	end
 
 	def respond_to?(method)
-		true
+    return true if method == :with
+    ret = false
+    @pool.with() { |conn| ret = conn.respond_to?(method) }
+    ret
 	end
 end
