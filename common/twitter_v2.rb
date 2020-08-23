@@ -22,10 +22,32 @@ class TweetV2
 
 	# Hashtags, cashtags and also from retweeted/quoted/replied_to tweets
 	def all_tags
+		_parse_all()
+		tags = @hashtags + @cashtags
+		[
+			@ref_tweet_retweeted,
+			@ref_tweet_quoted,
+			@ref_tweet_replied_to
+		].each { |tweet|
+			tweet = _tweet_by_id(tweet)
+			tags += tweet.all_tags if tweet != nil
+		}
+		tags
 	end
 
 	# URLs and also from retweeted/quoted/replied_to tweets
 	def all_urls
+		_parse_all()
+		tags = @urls
+		[
+			@ref_tweet_retweeted,
+			@ref_tweet_quoted,
+			@ref_tweet_replied_to
+		].each { |tweet|
+			tweet = _tweet_by_id(tweet)
+			tags += tweet.all_urls if tweet != nil
+		}
+		tags
 	end
 
 	def _parse_all
@@ -159,6 +181,142 @@ class TweetV2
 
 	def to_s
 		to_lines().join("\n")
+	end
+end
+
+class TwitterMonitor
+	def initialize(dir='.')
+		@valid_seconds = 7*24*3600 # 1 week
+		FileUtils.mkdir_p("#{dir}/tmp")
+		@status_f = "#{dir}/tmp/monitor.twitter.status"
+		if File.file?(@status_f)
+			# load_state
+			state = JSON.parse(File.read(@status_f))
+			@tag_stat = state[0]
+			@url_stat = state[1]
+		else
+			@tag_stat = {}
+			@url_stat = {}
+		end
+		@ignore_tags = {}
+		@known_tags = {}
+	end
+
+	def save_state
+		puts "saving status"
+		File.open(@status_f, 'w') { |f|
+			f.write(JSON.pretty_generate([
+				@tag_stat,
+				@url_stat
+			]))
+		}
+	end
+
+	def set_ignore_tags(tags)
+		if tags.is_a?(Hash)
+			@ignore_tags = tags
+		elsif tags.is_a?(Array)
+			@ignore_tags = tags.map { |t|
+				[t.upcase, 1]
+			}.to_h
+		end
+		@ignore_tags.keys.each { |t|
+			@tag_stat.delete(t)
+		}
+		self
+	end
+
+	def set_known_tags(tags)
+		if tags.is_a?(Hash)
+			@known_tags = tags
+		elsif tags.is_a?(Array)
+			@known_tags = tags.map { |t|
+				[t.upcase, 1]
+			}.to_h
+		end
+		self
+	end
+
+	def watch
+		trap("SIGINT") {
+			# print("\033[0;0H#{"Exiting after saving status"}")
+			print("Exiting after saving status")
+			save_state
+			exit
+		}
+		ct = 0
+		twt_stream() { |tweet|
+			stat(tweet)
+			# print "\033[0;0H"
+			print "\n#{'-'*40}\n#{tweet}\n"
+			print_stat()
+			ct += 1
+			save_state() if ct % 100 == 0
+		}
+	end
+
+	def print_stat
+		ct = 0
+		tag_info = []
+		max_tag_ct = nil
+		@tag_stat.each { |tag, info|
+			c = info['stat']['ct']
+			max_tag_ct ||= c
+			if @known_tags[tag].nil?
+				s = "#{tag.yellow} #{info['stat']['ct']}"
+			else
+				s = "#{tag} #{info['stat']['ct']}"
+			end
+			tag_info.push s
+			ct += 1
+			break if c < max_tag_ct/50
+		}
+		str = tag_info.join(" ")
+		print "#{str}\n"
+	end
+
+	def stat(tweet)
+		now = Time.now.to_f
+		tweet.all_tags.each { |tag|
+			tag = tag['tag'].upcase
+			next if @ignore_tags[tag] != nil
+			_stat(now, @tag_stat, tag, tweet.id)
+		}
+		tweet.all_urls.each { |url|
+			url = (url['unwound_url'] || url['display_url']).downcase
+			_stat(now, @url_stat, url, tweet.id)
+		}
+		@tag_stat = sort_stat_by_ct(@tag_stat)
+		@url_stat = sort_stat_by_ct(@url_stat)
+	end
+
+	def _stat(t, stat_map, data, tweet_id)
+		stat_map[data] ||= {
+			'records' => [],
+			'stat' => { 'ct' => 0 }
+		}
+		ct = stat_map[data]['stat']['ct']
+
+		# Keep records in @valid_seconds
+		oldest_info = nil
+		records = stat_map[data]['records']
+		loop {
+			oldest_info = records.first # t, data
+			break if oldest_info.nil?
+			break if t - oldest_info[0] <= @valid_seconds
+			records.shift
+			ct -= 1
+		}
+		records.push([t, tweet_id])
+		ct += 1
+
+		stat_map[data]['stat']['ct'] = ct
+	end
+
+	def sort_stat_by_ct(stat_map)
+		stat_map.to_a.sort_by { |tag, info|
+			info.dig('stat', 'ct') || 0
+		}.reverse.to_h
 	end
 end
 
