@@ -59,6 +59,7 @@ require 'optparse/time'
 require 'ostruct'
 require 'redlock'
 require 'concurrent'
+require 'typhoeus'
 
 # Load all script in given namespace.
 module APD

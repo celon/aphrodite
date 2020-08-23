@@ -9,6 +9,7 @@ gem 'ruby-progressbar'
 gem 'mail'
 gem 'mailgun-ruby'
 gem 'redlock'
+gem 'typhoeus'
 
 gem 'concurrent-ruby', require: 'concurrent'
 # Potential performance improvements may be achieved under MRI 
