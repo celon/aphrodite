@@ -8,6 +8,7 @@ class TimeSeriesBucket
 		@buckets = units.times.map { [] }
 		@latest_bucket_id = 0
 		@latest_bucket = @buckets[@bucket_num-1]
+		@latest_bucket_ct = 0
 		@useless_bucket = []
 	end
 
@@ -23,6 +24,7 @@ class TimeSeriesBucket
 		# Put into current bucket
 		if id == @latest_bucket_id
 			return if data.nil?
+			@latest_bucket_ct += 1
 			return(@latest_bucket.push(data))
 		end
 		# Fill gap between latest_bucket_id and id
@@ -61,7 +63,11 @@ class TimeSeriesBucket
 
 		# Put into latest bucket
 		@latest_bucket = @buckets[@bucket_num-1]
-		@latest_bucket.push(data) if data != nil
+		@latest_bucket_ct = 0
+		if data != nil
+			@latest_bucket_ct = 1
+			@latest_bucket.push(data)
+		end
 		@latest_bucket_id = id # Update latest_bucket_id
 	end
 
@@ -71,6 +77,14 @@ class TimeSeriesBucket
 
 	def each_bucket_top(&block)
 		@buckets.each { |b| block.call(b.first) }
+	end
+
+	def last_bucket_ct
+		@latest_bucket_ct
+	end
+
+	def all_ct
+		@buckets.map { |b| b.size }.sum
 	end
 
 	def all_data
