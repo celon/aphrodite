@@ -108,7 +108,7 @@ class TweetV2
 			s, e = a['start'], a['end']
 			str_before = ''
 			str_before = rendered_text[0..(s-1)] if s > 0
-			str_include = rendered_text[s..(e-1)]
+			str_include = rendered_text[s..(e-1)] || ''
 			str_after = rendered_text[e..-1]
 			if a['tag'] != nil # Render hashtags in green, cashtags in orange.
 				tag = a['tag']
@@ -185,8 +185,9 @@ class TweetV2
 end
 
 class TwitterMonitor
-	def initialize(dir='.')
-		@valid_seconds = 7*24*3600 # 1 week
+	def initialize(opt={})
+		dir = opt[:dir] || '.'
+		@valid_seconds = opt[:valid_seconds] || 7*24*3600 # 1 week by default.
 		FileUtils.mkdir_p("#{dir}/tmp")
 		@status_f = "#{dir}/tmp/monitor.twitter.status"
 		if File.file?(@status_f)
@@ -200,6 +201,7 @@ class TwitterMonitor
 		end
 		@ignore_tags = {}
 		@known_tags = {}
+		@block_tags = {}
 	end
 
 	def save_state
@@ -212,7 +214,21 @@ class TwitterMonitor
 		}
 	end
 
-	def set_ignore_tags(tags)
+	def set_block_tags(tags={})
+		if tags.is_a?(Hash)
+			@block_tags = tags
+		elsif tags.is_a?(Array)
+			@block_tags = tags.map { |t|
+				[t.upcase, 1]
+			}.to_h
+		end
+		@block_tags.keys.each { |t|
+			@tag_stat.delete(t)
+		}
+		self
+	end
+
+	def set_ignore_tags(tags={})
 		if tags.is_a?(Hash)
 			@ignore_tags = tags
 		elsif tags.is_a?(Array)
@@ -226,13 +242,35 @@ class TwitterMonitor
 		self
 	end
 
-	def set_known_tags(tags)
+	def set_known_tags(tags={})
 		if tags.is_a?(Hash)
 			@known_tags = tags
 		elsif tags.is_a?(Array)
 			@known_tags = tags.map { |t|
 				[t.upcase, 1]
 			}.to_h
+		end
+		self
+	end
+
+	def set_merge_tags(map)
+		@merge_tags = map
+		if map != nil
+			map.each { |old_tag, new_tag|
+				next if @tag_stat[old_tag].nil?
+				# Migration
+				if @tag_stat[new_tag].nil?
+					@tag_stat[new_tag] = @tag_stat.delete(old_tag)
+				else
+					# Merge
+					# 'records' => [[t, data]]
+					# 'stat' => { 'ct' => 0 }
+					old_stat = @tag_stat.delete(old_tag)
+					new_stat = @tag_stat[new_tag]
+					new_stat['records'] = (new_stat['records'] + old_stat['records']).sort_by { |r| r[0] }
+					new_stat['stat']['ct'] = new_stat['stat']['ct'] + old_stat['stat']['ct']
+				end
+			}
 		end
 		self
 	end
@@ -246,12 +284,26 @@ class TwitterMonitor
 		}
 		ct = 0
 		twt_stream() { |tweet|
+			# Block tweet contains any blocked_tag
+			blocked_tag = nil
+			tweet.all_tags.each { |tag|
+				if @block_tags[tag['tag'].upcase] != nil
+					blocked_tag = tag['tag']
+					break
+				end
+			}
+			if blocked_tag != nil
+				# print "\n#{'-'*40}\n#{tweet}\n"
+				print "BLOCKED because #{blocked_tag}\n".red
+				next
+			end
+
 			stat(tweet)
 			# print "\033[0;0H"
 			print "\n#{'-'*40}\n#{tweet}\n"
-			print_stat()
+			# print_stat()
 			ct += 1
-			save_state() if ct % 100 == 0
+			save_state() if ct % 10 == 0
 		}
 	end
 
@@ -272,7 +324,7 @@ class TwitterMonitor
 			break if c < max_tag_ct/50
 		}
 		str = tag_info.join(" ")
-		print "#{str}\n"
+		print "\n#{str}\n"
 	end
 
 	def stat(tweet)
@@ -280,6 +332,9 @@ class TwitterMonitor
 		tweet.all_tags.each { |tag|
 			tag = tag['tag'].upcase
 			next if @ignore_tags[tag] != nil
+			if @merge_tags != nil && @merge_tags[tag] != nil
+				tag = @merge_tags[tag] # Mapping to other tag.
+			end
 			_stat(now, @tag_stat, tag, tweet.id)
 		}
 		tweet.all_urls.each { |url|
@@ -528,14 +583,28 @@ module TwitterAPIV2
 
 		stream_url = "https://api.twitter.com/2/tweets/search/stream"
 		req = @_twt_stream_request = Typhoeus::Request.new(stream_url, options)
+		buffer = nil
 		req.on_body do |chunk|
 			next if chunk.strip.empty?
 			t = nil
 			begin
 				t = TweetV2.new(JSON.parse(chunk))
+				buffer = nil
 			rescue
-				print "Discard corrupted twitter stream chunk:\n#{chunk.inspect}\n".red
-				next
+				if buffer != nil # Merge with buffer and try again.
+					begin
+						t = TweetV2.new(JSON.parse(buffer + chunk))
+						buffer = nil
+					rescue # Failed again, append chunk to buffer.
+						print "Append more chunk to buffer:\n#{chunk}\n".red
+						buffer = buffer + chunk
+						next
+					end
+				else
+					buffer = chunk
+					print "Set chunk to buffer:\n#{chunk}\n".red
+					next
+				end
 			end
 			no_complain {
 				File.open("#{debug_dir}/#{t.id}", "w") { |f| f.write(JSON.pretty_generate(t.json)) }
