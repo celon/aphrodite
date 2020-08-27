@@ -9,7 +9,10 @@ gem 'ruby-progressbar'
 gem 'mail'
 gem 'mailgun-ruby'
 gem 'redlock'
+
+# For twitter and connection pool
 gem 'typhoeus'
+gem 'http', '5.0.0.pre'
 
 gem 'concurrent-ruby', require: 'concurrent'
 # Potential performance improvements may be achieved under MRI 

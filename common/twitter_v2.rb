@@ -1,3 +1,11 @@
+#####################################################################
+# class TweetV2:
+#   API V2 tweet json parser.
+# class TwitterMonitor:
+#   A statistic tool based on live data of API V2 search/stream.
+# module TwitterAPIV2:
+#   API V2 wrapper with connection pool and auto authentication.
+#####################################################################
 class TweetV2
 	attr_reader :id, :json
 
@@ -413,9 +421,11 @@ module TwitterAPIV2
 		@_twt_consumer_key ||= TWITTER_CONSUMER_KEY if (defined? TWITTER_CONSUMER_KEY)
 		@_twt_consumer_key ||= ENV['TWITTER_CONSUMER_KEY']
 		@_twt_consumer_key ||= ENV['TWITTER_KEY']
+		@_twt_consumer_key ||= raise("No TWITTER_BEARER_TOKEN, TWITTER_CONSUMER_KEY or TWITTER_KEY set in ENV")
 		@_twt_consumer_sec ||= TWITTER_CONSUMER_SECRET if (defined? TWITTER_CONSUMER_SECRET)
 		@_twt_consumer_sec ||= ENV['TWITTER_CONSUMER_SECRET']
 		@_twt_consumer_sec ||= ENV['TWITTER_SEC']
+		@_twt_consumer_sec ||= raise("No TWITTER_BEARER_TOKEN, TWITTER_CONSUMER_SECRET or TWITTER_SET set in ENV")
 		url = "#{TWITTER_API_HOST}/oauth2/token"
 		res = HTTP.basic_auth(
 			user: @_twt_consumer_key,
@@ -568,14 +578,22 @@ module TwitterAPIV2
 		true
 	end
 
-	def twt_stream(opt={})
+	def twt_filter_stream(opt={})
+		_twt_stream("https://api.twitter.com/2/tweets/search/stream", opt)
+	end
+
+	def twt_sample_stream(opt={})
+		_twt_stream("https://api.twitter.com/2/tweets/sample/stream", opt)
+	end
+
+	def _twt_stream(stream_url, opt={})
 		debug = opt[:debug] == true
 		debug_dir = './debug/tweets/'
 		FileUtils.mkdir_p debug_dir if debug
 
 		# Add or remove values from the optional parameters below. Full list of parameters can be found in the docs:
 		# https://developer.twitter.com/en/docs/twitter-api/tweets/filtered-stream/api-reference/get-tweets-search-stream
-		params = {
+		params = opt[:params] || {
 			"expansions": "author_id,entities.mentions.username,in_reply_to_user_id,referenced_tweets.id,referenced_tweets.id.author_id",
 			"tweet.fields": "attachments,author_id,conversation_id,created_at,entities,id,in_reply_to_user_id,lang",
 			# "expansions": "attachments.poll_ids,attachments.media_keys,author_id,entities.mentions.username,geo.place_id,in_reply_to_user_id,referenced_tweets.id,referenced_tweets.id.author_id",
@@ -595,7 +613,6 @@ module TwitterAPIV2
 			params: params
 		}
 
-		stream_url = "https://api.twitter.com/2/tweets/search/stream"
 		req = @_twt_stream_request = Typhoeus::Request.new(stream_url, options)
 		buffer = nil
 		req.on_body do |chunk|
@@ -610,13 +627,13 @@ module TwitterAPIV2
 						t = TweetV2.new(JSON.parse(buffer + chunk))
 						buffer = nil
 					rescue # Failed again, append chunk to buffer.
-						print "Append more chunk to buffer:\n#{chunk}\n".red
+						print "Append more chunk to buffer:\n#{chunk}\n".red if debug
 						buffer = buffer + chunk
 						next
 					end
 				else
 					buffer = chunk
-					print "Set chunk to buffer:\n#{chunk}\n".red
+					print "Set chunk to buffer:\n#{chunk}\n".red if debug
 					next
 				end
 			end
@@ -624,7 +641,7 @@ module TwitterAPIV2
 				File.open("#{debug_dir}/#{t.id}", "w") { |f| f.write(JSON.pretty_generate(t.json)) }
 			} if debug
 			next(yield(t)) if block_given?
-			print "#{'.'*40}\n#{t.to_s}\n" if debug
+			print "#{'.'*40}\n#{t.to_s}\n"
 		end
 		req.run
 	end
@@ -633,15 +650,10 @@ module TwitterAPIV2
 		TweetV2.new(json).to_s
 	end
 
-	def twt_test
-# 		puts TweetV2.new(File.read('./debug/tweets/1297370148072853504')).to_s
-# 		return
-		ret = twt_stream_rule_set([
-			{"value" => "farm finance"},
-			{"value" => "farming"},
-			{"value" => "defi"}
-		])
-# 		twt_stream_rules()
-		twt_stream(debug:true)
+	def twt_example
+		twt_stream_rules()
+		puts "Above are currently rules for search stream."
+		puts "Stream samples now"
+		twt_sample_stream()
 	end
 end
