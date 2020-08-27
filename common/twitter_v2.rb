@@ -50,6 +50,16 @@ class TweetV2
 		tags
 	end
 
+	def untaint_text
+		_render()
+		@untaint_text
+	end
+
+	def rendered_text
+		_render()
+		@rendered_text
+	end
+
 	def _parse_all
 		return if @parsed
 		@create_t = DateTime.parse(@data['created_at'])
@@ -101,15 +111,18 @@ class TweetV2
 		return if @rendered
 		_parse_all()
 
-		# Render hashtags and urls in @text, from last to first.
 		rendered_text = @text
+		untaint_text = @text # Those not included in any entity
 		footnotes = []
+		# Render hashtags and urls in @text, from last to first.
 		@entities.sort_by { |a| a['start'] }.reverse.each { |a|
 			s, e = a['start'], a['end']
 			str_before = ''
 			str_before = rendered_text[0..(s-1)] if s > 0
 			str_include = rendered_text[s..(e-1)] || ''
-			str_after = rendered_text[e..-1]
+			str_after = rendered_text[e..-1] || ''
+			untaint_text = str_before + (untaint_text[e..-1] || '') # Remove text.
+
 			if a['tag'] != nil # Render hashtags in green, cashtags in orange.
 				tag = a['tag']
 				if @cashtags.include?(tag)
@@ -137,8 +150,8 @@ class TweetV2
 			end
 		}
 		# Remove newlines and duplicated space.
-		rendered_text = rendered_text.gsub(/(\n|\r)/, ' ').gsub(/\s{2,}/, ' ')
-		@rendered_text = rendered_text
+		@rendered_text = rendered_text.gsub(/(\n|\r)/, ' ').gsub(/\s{2,}/, ' ').strip
+		@untaint_text = untaint_text.gsub(/(\n|\r)/, ' ').gsub(/\s{2,}/, ' ').strip
 		@rendered_footnotes = footnotes
 		@rendered = true
 	end
@@ -285,16 +298,17 @@ class TwitterMonitor
 		ct = 0
 		twt_stream() { |tweet|
 			# Block tweet contains any blocked_tag
-			blocked_tag = nil
-			tweet.all_tags.each { |tag|
-				if @block_tags[tag['tag'].upcase] != nil
-					blocked_tag = tag['tag']
-					break
-				end
+			blocked_tag = tweet.all_tags.find { |tag|
+				@block_tags[tag['tag'].upcase] != nil
 			}
 			if blocked_tag != nil
-				# print "\n#{'-'*40}\n#{tweet}\n"
-				print "BLOCKED because #{blocked_tag}\n".red
+				print "BLOCKED because: \##{blocked_tag['tag']} #{@block_tags[blocked_tag['tag']]}\n".red
+				next
+			end
+
+			# Block tweet that contains entities only.
+			if tweet.untaint_text.size <= 1
+				print "BLOCKED because of no info: #{tweet.rendered_text}\n".red
 				next
 			end
 
@@ -321,7 +335,7 @@ class TwitterMonitor
 			end
 			tag_info.push s
 			ct += 1
-			break if c < max_tag_ct/50
+			break if c < max_tag_ct/61.8
 		}
 		str = tag_info.join(" ")
 		print "\n#{str}\n"
