@@ -71,6 +71,7 @@ var urlSettings = null;
 var tryDifferentDeviceAfterFail = true;
 var actionCode = null;
 var actionTimeout = 0;
+var postRenderTime = 0;
 if (system.args[1] == '-f') {
 	try {
 		console.log("Loading configurations from " + system.args[2]);
@@ -98,9 +99,13 @@ if (system.args[1] == '-f') {
 				actionCode = str;
 			}
 			actionCode = "actionCode = " + actionCode;
-			console.log("Post load action():" + actionCode);
+			console.log("Post load action():", actionCode);
 			actionCode = eval(actionCode);
 			actionTimeout = taskJson.action_time;
+		}
+		if (taskJson.post_render_wait_time != null) {
+			postRenderTime = taskJson.post_render_wait_time;
+			console.log("Post render time:", postRenderTime);
 		}
 		tryDifferentDeviceAfterFail = taskJson.switch_device_after_fail;
 		if (tryDifferentDeviceAfterFail == null)
@@ -332,6 +337,9 @@ var postLoadAction = function() {
 		log("Set taskFinished false, eval action(), timeout = " + waitTime);
 		taskFinished = false;
 		page.evaluate(actionCode);
+	} else if (postRenderTime > 0) {
+		waitTime = postRenderTime * 1000;
+		log("Set post render time = " + waitTime);
 	}
 	setTimeout(lastAction, waitTime);
 }
