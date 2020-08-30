@@ -146,7 +146,7 @@ var maxResponseId = 0;
 var taskFinished = false;
 
 // Default user agent.
-desktopUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36';
+desktopUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36';
 iPadUserAgent = 'Mozilla/5.0 (iPad; CPU OS 8_1_3 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12B466 Safari/600.1.4';
 
 // Default functions.
@@ -301,7 +301,8 @@ page.onResourceReceived = function(response) {
 			appearredWindowLocation.push(currentUrl);
 		}
 	}
-    log('    <<<<< Receive (#' + response.id  + '): \t' + response.url);
+    log('    <<<<< Receive (#' + response.id  + '): \t' + response.url + ', ' + response.stage);
+	// log(JSON.stringify(response));
 	if (maxResponseId < response.id)
 		maxResponseId = response.id;
 	if (path.endsWith('.js') || path.endsWith('.css'))
