@@ -184,12 +184,24 @@ module SpiderUtil
 	########################################
 	include ExecUtil
 	include LogicControl
-	def render_html(url, opt={})
-		limit_retry(retry_ct:opt[:retry_ct]) do
-			render_html_int(url, opt)
+	def render_html(url, opt={}, &block)
+		method = opt[:with] || 'phantomjs'
+		if method == 'phantomjs' || method == :phantomjs
+			limit_retry(retry_ct:opt[:retry_ct]) {
+				return render_with_phantomjs(url, opt)
+			}
+		elsif method == 'firefox' || method == :firefox
+			# Block with carrying vars would not work with retry
+			if block_given?
+				return render_with_firefox(url, opt, &block)
+			else
+				limit_retry(retry_ct:opt[:retry_ct]) {
+					return render_with_firefox(url, opt)
+				}
+			end
 		end
 	end
-	def render_html_int(url, opt={})
+	def render_with_phantomjs(url, opt={})
 		rand = Random.rand(10000).to_s.rjust(4, '0')
 		task_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.task"
 		html_file = "/tmp/phantomjs_#{hash_str(url)}_#{rand}.html"
@@ -223,6 +235,30 @@ module SpiderUtil
 		rescue => e
 			Logger.error e
 		end
-		html
+		return html
+	end
+
+	def render_with_firefox(url, opt={})
+		options = Selenium::WebDriver::Firefox::Options.new
+		options.headless!
+		options.add_argument("--window-size=1400,900")
+		driver = Selenium::WebDriver.for :firefox, options: options
+		driver.navigate.to(url)
+
+		render_t = opt[:render_t] || 10
+		# puts "Sleep #{render_t} for firefox: #{url}"
+		sleep render_t
+
+		if block_given?
+			loop {
+				break if yield(driver) == true
+				# puts "Sleep #{render_t} for firefox: #{url}"
+				sleep render_t
+			}
+		end
+
+		html = driver.page_source
+		driver.quit
+		return html
 	end
 end

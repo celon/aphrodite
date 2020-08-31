@@ -14,6 +14,9 @@ gem 'redlock'
 gem 'typhoeus'
 gem 'http', '5.0.0.pre'
 
+# For firefox headless html render
+gem 'selenium-webdriver'
+
 gem 'concurrent-ruby', require: 'concurrent'
 # Potential performance improvements may be achieved under MRI 
 # by installing optional C extensions.
