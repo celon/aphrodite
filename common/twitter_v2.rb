@@ -304,7 +304,7 @@ class TwitterMonitor
 			exit
 		}
 		ct = 0
-		twt_stream() { |tweet|
+		twt_filter_stream() { |tweet|
 			# Block tweet contains any blocked_tag
 			blocked_tag = tweet.all_tags.find { |tag|
 				@block_tags[tag['tag'].upcase] != nil
