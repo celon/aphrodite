@@ -12,7 +12,12 @@ gem 'redlock'
 
 # For twitter and connection pool
 gem 'typhoeus'
-gem 'http', '5.0.0.pre'
+
+# Enable below line if wish to use http with socks proxy and keep-alive.
+# gem 'http', '5.0.0.pre'
+# Enable below two lines if wish to use twitter v1
+# gem 'twitter', '~>7.0'
+# gem 'http'
 
 # For firefox headless html render
 gem 'selenium-webdriver'
@@ -24,13 +29,10 @@ gem 'concurrent-ruby-ext' if RUBY_ENGINE == 'ruby'
 
 if RUBY_ENGINE == 'jruby'
 	gem "march_hare", "~> 2.21.0"
-	gem 'twitter'
 elsif RUBY_ENGINE == 'truffleruby'
 	gem 'bunny', '>= 2.6.3'
 	# Could not compile mysql2 on ubuntu 1804
-	# Could not compile twitter on macOS
 else
-	gem 'twitter'
 	gem 'bunny', '>= 2.6.3'
 	gem 'mysql2', '~>0.4.0'
 end
