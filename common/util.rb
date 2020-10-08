@@ -191,9 +191,10 @@ module Cacheable
 							end
 						end
 						value = send value_method
-						instance_variable_set "#{cache_method_key}_#{index}".to_sym, [cache_key, value]
+						instance_variable_set "#{cache_method_key}_#{index}".to_sym, [cache_key, value, score]
 						# Put data.
 						if type_sorted_set
+							# puts "Cache into #{cache_key}, score #{send(last_key)} #{score}\n#{value}"
 							cache_client.zadd cache_key, score, value
 						else
 							cache_client.set cache_key, value
@@ -204,7 +205,8 @@ module Cacheable
 						old_kv = instance_variable_get "#{cache_method_key}_#{index}".to_sym
 						if old_kv != nil
 							if type_sorted_set
-								cache_client.zrem old_kv[0], old_kv[1]
+								# [cache_key, value, score]
+								cache_client.zrem old_kv[0], old_kv[2]
 							else
 								cache_client.del old_kv[0]
 							end

@@ -186,6 +186,7 @@ module SpiderUtil
 	include LogicControl
 	def render_html(url, opt={}, &block)
 		method = opt[:with] || 'phantomjs'
+		puts "Render #{url} with #{method}" if opt[:verbose] == true
 		if method == 'phantomjs' || method == :phantomjs
 			limit_retry(retry_ct:opt[:retry_ct]) {
 				return render_with_phantomjs(url, opt)
