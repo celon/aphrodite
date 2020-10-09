@@ -11,7 +11,7 @@ gem 'mailgun-ruby'
 gem 'redlock'
 
 # For twitter and connection pool
-gem 'typhoeus'
+# gem 'typhoeus'
 
 # Enable below line if wish to use http with socks proxy and keep-alive.
 # gem 'http', '5.0.0.pre'
