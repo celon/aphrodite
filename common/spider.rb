@@ -240,20 +240,22 @@ module SpiderUtil
 	end
 
 	def render_with_firefox(url, opt={})
+		verbose = (opt[:verbose] != false)
 		options = Selenium::WebDriver::Firefox::Options.new
 		options.headless!
 		options.add_argument("--window-size=1400,900")
 		driver = Selenium::WebDriver.for :firefox, options: options
+		puts "firefox: #{url}" if verbose
 		driver.navigate.to(url)
 
-		render_t = opt[:render_t] || 10
-		# puts "Sleep #{render_t} for firefox: #{url}"
+		render_t = opt[:render_t] || opt[:post_render_wait_time] || 10
+		puts "Render #{render_t} seconds for:\n#{url}" if verbose
 		sleep render_t
 
 		if block_given?
 			loop {
 				break if yield(driver) == true
-				# puts "Sleep #{render_t} for firefox: #{url}"
+				puts "Render #{render_t} seconds for:\n#{url}" if verbose
 				sleep render_t
 			}
 		end
