@@ -186,9 +186,10 @@ module SpiderUtil
 	include LogicControl
 	def render_html(url, opt={}, &block)
 		method = opt[:with] || 'phantomjs'
+		retry_ct = opt[:retry_ct] || 3
 		puts "Render #{url} with #{method}" if opt[:verbose] == true
 		if method == 'phantomjs' || method == :phantomjs
-			limit_retry(retry_ct:opt[:retry_ct]) {
+			limit_retry(retry_ct:retry_ct) {
 				return render_with_phantomjs(url, opt)
 			}
 		elsif method == 'firefox' || method == :firefox
@@ -196,7 +197,7 @@ module SpiderUtil
 			if block_given?
 				return render_with_firefox(url, opt, &block)
 			else
-				limit_retry(retry_ct:opt[:retry_ct]) {
+				limit_retry(retry_ct:retry_ct) {
 					return render_with_firefox(url, opt)
 				}
 			end
