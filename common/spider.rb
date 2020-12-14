@@ -194,13 +194,9 @@ module SpiderUtil
 			}
 		elsif method == 'firefox' || method == :firefox
 			# Block with carrying vars would not work with retry
-			if block_given?
+			limit_retry(retry_ct:retry_ct) {
 				return render_with_firefox(url, opt, &block)
-			else
-				limit_retry(retry_ct:retry_ct) {
-					return render_with_firefox(url, opt)
-				}
-			end
+			}
 		end
 	end
 	def render_with_phantomjs(url, opt={})
@@ -244,9 +240,11 @@ module SpiderUtil
 		verbose = (opt[:verbose] != false)
 		options = Selenium::WebDriver::Firefox::Options.new
 		options.headless!
-		options.add_argument("--window-size=1400,900")
+		width = opt[:width] || 1400
+		height = opt[:height] || 900
+		options.add_argument("--window-size=#{width},#{height}")
 		driver = Selenium::WebDriver.for :firefox, options: options
-		puts "firefox: #{url}" if verbose
+		puts "firefox #{width}x#{height} #{url}" if verbose
 		driver.navigate.to(url)
 
 		render_t = opt[:render_t] || opt[:post_render_wait_time] || 10
