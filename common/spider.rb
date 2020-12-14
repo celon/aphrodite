@@ -93,6 +93,9 @@ module SpiderUtil
 		end
 	end
 
+	# Form the native curl command to invoke.
+	# Yield its file in block if given.
+	# Otherwise return its content in UTF-8.
 	def curl(url, opt={})
 		file = opt[:file]
 		use_cache = opt[:use_cache] == true
@@ -103,11 +106,10 @@ module SpiderUtil
 		post_data = opt[:post]
 		post_data = map_to_poststr(post_data) if post_data.is_a?(Hash)
 
-		tmp_file_use = false
-		if file.nil?
+		tmp_file_use = file.nil?
+		if tmp_file_use
 			rand = Random.rand(10000).to_s.rjust(4, '0')
 			file = "curl_#{hash_str(url)}_#{rand}.html"
-			tmp_file_use = true
 		end
 		# Directly return from cache file if use_cache=true
 		if file != nil && File.file?(file) && use_cache == true
@@ -115,7 +117,7 @@ module SpiderUtil
 			result = File.open(file, "rb").read
 			return result
 		end
-		cmd = "curl --output '#{file}' -L " # -L Follow 301 redirection.
+		cmd = "curl --output '#{file}' -L " # -L to Follow 301 redirection.
 		cmd += " --data \"#{post_data}\"" unless post_data.nil?
 		cmd += " --fail" unless opt[:allow_http_error]
 		cmd += " --silent" unless opt[:verbose]
@@ -129,7 +131,12 @@ module SpiderUtil
 		cmd += " '#{url}'"
 		Logger.debug(cmd) if opt[:verbose]
 		ret = system(cmd)
-		if File.exist?(file)
+		return nil if File.exist?(file) == false
+		# Let block to handle file or return its content in UTF-8
+		result = nil
+		if block_given?
+			result = yield(file)
+		else
 			unless encoding.nil?
 				cmd = "iconv -f #{encoding} -t utf-8//IGNORE '#{file}' -o '#{file}.utf8'"
 				Logger.debug(cmd) if opt[:verbose]
@@ -138,19 +145,15 @@ module SpiderUtil
 				Logger.debug(cmd) if opt[:verbose]
 				system(cmd)
 			end
-		end
-		if File.exist?(file)
 			result = File.open(file, "rb").read
 			result = result.force_encoding('utf-8') unless encoding.nil?
-			begin
-				File.delete(file) if tmp_file_use
-			rescue => e
-				Logger.error e
-			end
-		else
-			result = nil
 		end
-		result
+		begin # Clean tmp file.
+			File.delete(file) if tmp_file_use
+		rescue => e
+			Logger.error e
+		end
+		return result
 	end
 
 	def map_to_poststr(map)
