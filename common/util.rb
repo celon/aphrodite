@@ -424,7 +424,7 @@ module LogicControl
 		begin
 			return yield()
 		rescue => e
-			puts e
+			Logger.error e
 			return nil
 		end
 	end
