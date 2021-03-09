@@ -246,7 +246,11 @@ module SpiderUtil
 		width = opt[:width] || 1400
 		height = opt[:height] || 900
 		options.add_argument("--window-size=#{width},#{height}")
-		driver = Selenium::WebDriver.for :firefox, options: options
+		if Selenium::WebDriver::VERSION >= '4.0'
+			driver = Selenium::WebDriver.for :firefox, capabilities: [options]
+		else
+			driver = Selenium::WebDriver.for :firefox, options: options
+		end
 		puts "firefox #{width}x#{height} #{url}" if verbose
 		driver.navigate.to(url)
 

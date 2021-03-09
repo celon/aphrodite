@@ -9,6 +9,7 @@ gem 'ruby-progressbar'
 gem 'mail'
 gem 'mailgun-ruby'
 gem 'redlock'
+gem 'rmagick'
 
 # For twitter and connection pool
 # gem 'typhoeus'
@@ -20,7 +21,11 @@ gem 'redlock'
 # gem 'http'
 
 # For firefox headless html render
-gem 'selenium-webdriver'
+if RUBY_ENGINE == 'ruby' && RUBY_VERSION >= '2.5'
+	gem 'selenium-webdriver', '~> 4.0.0.beta1' # requires ruby >= 2.5
+else
+	gem 'selenium-webdriver', '>= 3.142.7'
+end
 
 gem 'concurrent-ruby', require: 'concurrent'
 # Potential performance improvements may be achieved under MRI 

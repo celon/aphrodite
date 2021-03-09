@@ -60,6 +60,7 @@ require 'redlock'
 require 'concurrent'
 # require 'typhoeus'
 require 'http'
+require 'rmagick'
 
 # Load all script in given namespace.
 module APD
