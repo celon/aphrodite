@@ -246,28 +246,32 @@ module SpiderUtil
 		width = opt[:width] || 1400
 		height = opt[:height] || 900
 		options.add_argument("--window-size=#{width},#{height}")
+		options.add_preference("devtools.jsonview.enabled", false) # Disable JSON viewer
 		if Selenium::WebDriver::VERSION >= '4.0'
 			driver = Selenium::WebDriver.for :firefox, capabilities: [options]
 		else
 			driver = Selenium::WebDriver.for :firefox, options: options
 		end
-		puts "firefox #{width}x#{height} #{url}" if verbose
-		driver.navigate.to(url)
+		begin
+			puts "firefox #{width}x#{height} #{url}" if verbose
+			driver.navigate.to(url)
 
-		render_t = opt[:render_t] || opt[:post_render_wait_time] || 10
-		puts "Render #{render_t} seconds for:\n#{url}" if verbose
-		sleep render_t
+			render_t = opt[:render_t] || opt[:post_render_wait_time] || 10
+			puts "Render #{render_t} seconds for:\n#{url}" if verbose
+			sleep render_t
 
-		if block_given?
-			loop {
-				break if yield(driver) == true
-				puts "Render #{render_t} seconds for:\n#{url}" if verbose
-				sleep render_t
-			}
+			if block_given?
+				loop {
+					break if yield(driver) == true
+					puts "Render #{render_t} seconds for:\n#{url}" if verbose
+					sleep render_t
+				}
+			end
+
+			html = driver.page_source
+		ensure
+			driver.quit
 		end
-
-		html = driver.page_source
-		driver.quit
 		return html
 	end
 end
