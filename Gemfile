@@ -42,6 +42,8 @@ else
 	if RUBY_ENGINE == 'ruby' && RUBY_VERSION >= '2.5'
 		gem 'mysql2', '~>0.5'
 	else
-		gem 'mysql2', '~>0.4' # Does not work with BigDecimal
+		# 0.4.x Does not work with BigDecimal
+		# 0.4.0 works with Rails 4
+		gem 'mysql2', '~>0.4.0'
 	end
 end
