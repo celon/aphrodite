@@ -113,7 +113,7 @@ module SpiderUtil
 		end
 		# Directly return from cache file if use_cache=true
 		if file != nil && File.file?(file) && use_cache == true
-			Logger.debug("#{cmd} --> directly return cache:#{file}") if opt[:verbose] == true
+			Logger.debug("#{url} --> directly return cache:#{file}") if opt[:verbose] == true
 			result = File.open(file, "rb").read
 			return result
 		end
