@@ -444,6 +444,15 @@ module LogicControl
 			retry
 		end
 	end
+  # Keep sleeping even always waked up by other threads.
+  def keep_sleep(seconds)
+    until_t = Time.now.to_f + seconds
+    loop {
+      remained_t = until_t - Time.now.to_f
+      break if remained_t <= 0
+      sleep remained_t # Always waked up by other threads.
+    }
+  end
 end
 
 module ExecUtil
