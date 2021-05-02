@@ -455,6 +455,37 @@ module LogicControl
   end
 end
 
+module CLI
+  def terminal_width
+    # IO.console.winsize
+    # io-console does not support JRuby
+    GLI::Terminal.new.size[0]
+  end
+  def terminal_height
+    GLI::Terminal.new.size[1]
+  end
+
+  def get_input(opt={})
+    puts(opt[:prompt].white.on_black, level:2) unless opt[:prompt].nil?
+    timeout = opt[:timeout]
+    if timeout.nil?
+      return STDIN.gets.chomp
+    elsif timeout == 0
+      return 'Y'
+    else
+      ret = nil
+      begin
+        Timeout::timeout(timeout) do
+          ret = STDIN.gets.chomp
+        end
+      rescue Timeout::Error
+        ret = nil
+      end
+      return ret
+    end
+  end
+end
+
 module ExecUtil
 	def exec_command(command, opt={})
 		log_prefix = opt[:log_prefix] || ''
