@@ -117,7 +117,7 @@ module SpiderUtil
 			result = File.open(file, "rb").read
 			return result
 		end
-		cmd = "curl --output '#{file}' -L " # -L to Follow 301 redirection.
+		cmd = "curl --compressed --output '#{file}' -L " # -L to Follow 301 redirection.
 		cmd += " --data \"#{post_data}\"" unless post_data.nil?
 		cmd += " --fail" unless opt[:allow_http_error]
 		cmd += " --silent" unless opt[:verbose]
