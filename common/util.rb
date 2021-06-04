@@ -436,10 +436,9 @@ module LogicControl
 		begin
 			ct += 1
 			return yield()
-		rescue => e
+		rescue Exception => e
 			raise e if max_ct > 0 && ct > max_ct
-			puts e.message, level:log_level
-			puts "Retry #{ct+1}/#{max_ct} after #{sleep_s}s"
+			puts "#{e.class} #{e.message} \nRetry #{ct+1}/#{max_ct} after #{sleep_s}s", level:log_level
 			sleep(sleep_s) if sleep_s > 0
 			retry
 		end
