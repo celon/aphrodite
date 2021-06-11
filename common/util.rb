@@ -437,11 +437,11 @@ module LogicControl
 			ct += 1
 			return yield()
 		rescue StandardError => e
+			puts "#{e.class} #{e.message}\nCT #{ct+1}/#{max_ct} sleep #{sleep_s}s", level:log_level
 			# Exception has a number of subclasses; some are recoverable 
 			# while others are not. All recoverable errors inherit from the 
 			# StandardError class, which itself inherits directly from Exception.
 			raise e if max_ct > 0 && ct > max_ct
-			puts "#{e.class} #{e.message} \nRetry #{ct+1}/#{max_ct} after #{sleep_s}s", level:log_level
 			sleep(sleep_s) if sleep_s > 0
 			retry
 		end
