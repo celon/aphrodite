@@ -192,12 +192,12 @@ module SpiderUtil
 		retry_ct = opt[:retry_ct] || 3
 		puts "Render #{url} with #{method}" if opt[:verbose] == true
 		if method == 'phantomjs' || method == :phantomjs
-			limit_retry(retry_ct:retry_ct) {
+			limit_retry(retry_ct:retry_ct, sleep: 60) {
 				return render_with_phantomjs(url, opt)
 			}
 		elsif method == 'firefox' || method == :firefox
 			# Block with carrying vars would not work with retry
-			limit_retry(retry_ct:retry_ct) {
+			limit_retry(retry_ct:retry_ct, sleep: 60) {
 				return render_with_firefox(url, opt, &block)
 			}
 		end
