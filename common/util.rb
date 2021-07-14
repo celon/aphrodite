@@ -416,7 +416,7 @@ end
 module LogicControl
 	def endless_retry(opt={}, &block)
 		opt_c = opt.clone
-		opt_c[:retry_ct] = 0
+		opt_c[:retry_ct] = -1
 		opt_c[:log_level] = 4
 		limit_retry(opt_c, &block)
 	end
@@ -424,7 +424,7 @@ module LogicControl
 		begin
 			return yield()
 		rescue => e
-			Logger.error e
+			Logger.error e if opt[:silent] != true
 			return nil
 		end
 	end
@@ -434,14 +434,15 @@ module LogicControl
 		log_level = opt[:log_level] || 3
 		ct = 0
 		begin
-			ct += 1
-			return yield()
+			return yield(ct)
 		rescue StandardError => e
-			puts "#{e.class} #{e.message}\nCT #{ct+1}/#{max_ct} sleep #{sleep_s}s", level:log_level
+			ct += 1
 			# Exception has a number of subclasses; some are recoverable 
 			# while others are not. All recoverable errors inherit from the 
 			# StandardError class, which itself inherits directly from Exception.
-			raise e if max_ct > 0 && ct > max_ct
+			raise e if max_ct == 0
+			raise e if max_ct > 0 && ct >= max_ct
+			puts "#{e.class} #{e.message}\nRetry #{ct}/#{max_ct} after sleep #{sleep_s}s", level:log_level
 			sleep(sleep_s) if sleep_s > 0
 			retry
 		end

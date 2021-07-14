@@ -120,8 +120,13 @@ module SpiderUtil
 		cmd = "curl --compressed --output '#{file}' -L " # -L to Follow 301 redirection.
 		cmd += " --data \"#{post_data}\"" unless post_data.nil?
 		cmd += " --fail" unless opt[:allow_http_error]
-		cmd += " --silent" unless opt[:verbose]
+		if opt[:verbose]
+			cmd += " -v"
+		else
+			cmd += " --silent"
+		end
 		cmd += " -A '#{agent}'" unless agent.nil?
+		cmd += " --cookie #{opt[:cookie]}" unless opt[:cookie].nil?
 		cmd += " --retry #{opt[:retry]}" unless opt[:retry].nil?
 		cmd += " --retry-delay #{retry_delay}"
 		cmd += " --max-time #{opt[:max_time]}" unless opt[:max_time].nil?
@@ -190,7 +195,7 @@ module SpiderUtil
 	def render_html(url, opt={}, &block)
 		method = opt[:with] || 'phantomjs'
 		retry_ct = opt[:retry_ct] || 3
-		puts "Render #{url} with #{method}" if opt[:verbose] == true
+		puts "\tRender #{url} with #{method}" if opt[:verbose] == true
 		if method == 'phantomjs' || method == :phantomjs
 			limit_retry(retry_ct:retry_ct, sleep: 60) {
 				return render_with_phantomjs(url, opt)
@@ -239,39 +244,115 @@ module SpiderUtil
 		return html
 	end
 
-	def render_with_firefox(url, opt={})
+	def prepare_firefox_webdriver(opt={})
 		verbose = (opt[:verbose] != false)
 		options = Selenium::WebDriver::Firefox::Options.new
-		options.headless!
-		width = opt[:width] || 1400
-		height = opt[:height] || 900
-		options.add_argument("--window-size=#{width},#{height}")
-		options.add_preference("devtools.jsonview.enabled", false) # Disable JSON viewer
+		options.headless! unless opt[:headless] == false # Default: headless
+		Logger.highlight "width and height options omit" if opt[:width] != nil || opt[:height] != nil
+# 		width = opt[:width] || 1400
+# 		height = opt[:height] || 900
+# 		puts "New firefox #{width}x#{height}" if verbose
+# 		options.add_argument("--window-size=#{width},#{height}")
+		# Disable firefox built-in JSON viewer
+		options.add_preference("devtools.jsonview.enabled", false)
 		if Selenium::WebDriver::VERSION >= '4.0'
 			driver = Selenium::WebDriver.for :firefox, capabilities: [options]
 		else
 			driver = Selenium::WebDriver.for :firefox, options: options
 		end
+		driver.manage.window.maximize
+# 		driver.execute_script("window.resizeTo(#{width},#{height})")
+		driver
+	end
+
+	def selenium_click(webdriver, btn)
+		x = btn.rect.x+btn.rect.width/2
+		y = btn.rect.y+btn.rect.height/2
 		begin
-			puts "firefox #{width}x#{height} #{url}" if verbose
+			webdriver.action.move_to_location(x, y).perform
+			webdriver.action.click_and_hold(btn).perform
+			webdriver.action.release.perform
+		rescue
+			# Selenium::WebDriver::Error::MoveTargetOutOfBoundsError happens sometimes.
+			btn.click
+		end
+	end
+
+	def selenium_moveto(webdriver, btn)
+		x = btn.rect.x+btn.rect.width/2
+		y = btn.rect.y+btn.rect.height/2
+		webdriver.action.move_to_location(x, y).perform
+	end
+
+	def render_with_firefox(url, opt={})
+		verbose = (opt[:verbose] != false)
+		driver = opt[:firefox] || opt[:webdriver]
+		driver_new = false
+		if driver.nil?
+			driver = prepare_firefox_webdriver()
+			driver_new = true
+		end
+		begin
+			puts "\tfirefox #{url}", level:2 if verbose
 			driver.navigate.to(url)
 
 			render_t = opt[:render_t] || opt[:post_render_wait_time] || 10
-			puts "Render #{render_t} seconds for:\n#{url}" if verbose
+			puts "\tRender #{render_t} seconds for: #{url}", level:2 if verbose
 			sleep render_t
 
 			if block_given?
 				loop {
 					break if yield(driver) == true
-					puts "Render #{render_t} seconds for:\n#{url}" if verbose
+					puts "\tRender #{render_t} seconds for: #{url}", level:2  if verbose
 					sleep render_t
 				}
 			end
 
 			html = driver.page_source
 		ensure
-			driver.quit
+			driver.quit if driver_new
 		end
 		return html
+	end
+
+	def curl_with_selenium_cookies(firefox, url, opt={})
+		cookies = firefox.manage.all_cookies
+		# See: https://curl.se/docs/http-cookies.html
+		# The cookie file format is text based and stores one cookie per line.
+		# Lines that start with # are treated as comments.
+		# Each line that each specifies a single cookie consists of seven text fields
+		# separated with TAB characters.
+		# A valid line must end with a newline character.
+		cookie_lines = cookies.map { |ck|
+			# puts ck.inspect
+			# Fields in the file:
+			# Field number, what type and example data and the meaning of it:
+			#     string example.com - the domain name
+			#     boolean FALSE - include subdomains
+			#     string /foobar/ - path
+			#     boolean TRUE - send/receive over HTTPS only
+			#     number 1462299217 - expires at - seconds since Jan 1st 1970, or 0
+			#     string person - name of the cookie
+			#     string daniel - value of the cookie
+			segs = [
+				ck[:domain],
+				(ck[:same_site] != nil ? 'TRUE' : 'FALSE'),
+				ck[:path],
+				(ck[:http_only] == false ? 'TRUE' : 'FALSE'),
+				ck[:expires].strftime('%Q').to_i/1000,
+				ck[:name],
+				ck[:value]
+			]
+			# puts segs.join("\t")
+			next segs.join("\t")
+		}
+		cookies_f = "/tmp/selenium.#{Time.now.to_i}_#{Random.rand(9999)}.cookies"
+		puts "firefox #{cookie_lines.size} cookies -> #{cookies_f}\n--> #{url}"
+		File.open(cookies_f, 'w') { |f| f.write(cookie_lines.join("\n")) }
+		opt = opt.clone
+		opt[:cookie] = cookies_f
+		ret = curl(url, opt)
+		FileUtils.rm(cookies_f) if File.file?(cookies_f)
+		ret
 	end
 end
